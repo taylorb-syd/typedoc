@@ -43,7 +43,7 @@ export class TypePlugin extends ConverterComponent {
         this.reflections.clear();
     }
 
-    private onResolve(context: Context, reflection: DeclarationReflection) {
+    private onResolve(context: Context, reflection: Reflection) {
         this.resolve(context.project, reflection);
     }
 

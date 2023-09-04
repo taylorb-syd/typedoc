@@ -87,9 +87,9 @@ export class ComponentEvent {
 
     component: AbstractComponent<ComponentHost>;
 
-    static ADDED = "componentAdded";
+    static readonly ADDED = "componentAdded";
 
-    static REMOVED = "componentRemoved";
+    static readonly REMOVED = "componentRemoved";
 
     constructor(
         owner: ComponentHost,
@@ -106,8 +106,11 @@ export class ComponentEvent {
  *
  * @template O type of component's owner.
  */
-export abstract class AbstractComponent<O extends ComponentHost>
-    extends EventDispatcher<any>
+export abstract class AbstractComponent<
+        O extends ComponentHost,
+        E extends Record<keyof E, unknown[]> = {}
+    >
+    extends EventDispatcher<E>
     implements ComponentHost
 {
     /**
@@ -156,6 +159,11 @@ export abstract class AbstractComponent<O extends ComponentHost>
     }
 }
 
+interface ChildableComponentEvents {
+    componentAdded: [ComponentEvent];
+    componentRemoved: [ComponentEvent];
+}
+
 /**
  * Component that can have child components.
  *
@@ -164,8 +172,9 @@ export abstract class AbstractComponent<O extends ComponentHost>
  */
 export abstract class ChildableComponent<
     O extends ComponentHost,
-    C extends Component
-> extends AbstractComponent<O> {
+    C extends Component,
+    E extends Record<keyof E, unknown[]> = {}
+> extends AbstractComponent<O, E & ChildableComponentEvents> {
     /**
      *
      */
@@ -223,7 +232,10 @@ export abstract class ChildableComponent<
                     : componentClass;
             const event = new ComponentEvent(this, component);
 
-            this.trigger(ComponentEvent.ADDED, event);
+            (this as ChildableComponent<O, C, {}>).trigger(
+                ComponentEvent.ADDED,
+                event
+            );
             this._componentChildren[name] = component;
 
             return component;
@@ -234,7 +246,7 @@ export abstract class ChildableComponent<
         const component = (this._componentChildren || {})[name];
         if (component) {
             delete this._componentChildren![name];
-            this.trigger(
+            (this as ChildableComponent<O, C, {}>).trigger(
                 ComponentEvent.REMOVED,
                 new ComponentEvent(this, component)
             );

@@ -87,17 +87,18 @@ export interface ApplicationEvents {
 @Component({ name: "application", internal: true })
 export class Application extends ChildableComponent<
     Application,
-    AbstractComponent<Application>
+    AbstractComponent<Application>,
+    ApplicationEvents
 > {
     /**
      * The converter used to create the declaration reflections.
      */
-    converter: Converter;
+    converter = new Converter(this);
 
     /**
      * The renderer used to generate the documentation output.
      */
-    renderer: Renderer;
+    renderer = new Renderer(this);
 
     /**
      * The serializer used to generate JSON output.
@@ -161,9 +162,6 @@ export class Application extends ChildableComponent<
             );
         }
         super(null!); // We own ourselves
-
-        this.converter = this.addComponent<Converter>("converter", Converter);
-        this.renderer = this.addComponent<Renderer>("renderer", Renderer);
     }
 
     /**

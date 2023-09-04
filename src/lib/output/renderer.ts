@@ -11,7 +11,7 @@ import * as path from "path";
 
 import type { Application } from "../application";
 import type { Theme } from "./theme";
-import { RendererEvent, PageEvent, IndexEvent } from "./events";
+import { RendererEvent, PageEvent, IndexEvent, MarkdownEvent } from "./events";
 import type { ProjectReflection } from "../models/reflections/project";
 import type { RenderTemplate } from "./models/UrlMapping";
 import { writeFileSync } from "../utils/fs";
@@ -83,6 +83,16 @@ export interface RendererHooks {
     "pageSidebar.end": [DefaultThemeRenderContext];
 }
 
+interface RendererEvents {
+    parseMarkdown: [MarkdownEvent];
+    includeMarkdown: [MarkdownEvent];
+    beginPage: [PageEvent<Reflection>];
+    endPage: [PageEvent<Reflection>];
+    beginRender: [RendererEvent];
+    endRender: [RendererEvent];
+    prepareIndex: [IndexEvent];
+}
+
 /**
  * The renderer processes a {@link ProjectReflection} using a {@link Theme} instance and writes
  * the emitted html documents to a output directory. You can specify which theme should be used
@@ -118,7 +128,8 @@ export interface RendererHooks {
 @Component({ name: "renderer", internal: true, childClass: RendererComponent })
 export class Renderer extends ChildableComponent<
     Application,
-    RendererComponent
+    RendererComponent,
+    RendererEvents
 > {
     private themes = new Map<string, new (renderer: Renderer) => Theme>([
         ["default", DefaultTheme],
@@ -173,6 +184,8 @@ export class Renderer extends ChildableComponent<
      */
     hooks = new EventHooks<RendererHooks, JsxElement>();
 
+    markedPlugin: MarkedPlugin;
+
     /** @internal */
     @Option("theme")
     accessor themeName!: string;
@@ -206,6 +219,15 @@ export class Renderer extends ChildableComponent<
     accessor pretty!: boolean;
 
     renderStartTime = -1;
+
+    constructor(app: Application) {
+        super(app);
+
+        this.markedPlugin = new MarkedPlugin(this);
+        new AssetsPlugin(this);
+        new JavascriptIndexPlugin(this);
+        new NavigationPlugin(this);
+    }
 
     /**
      * Define a new theme that can be used to render output.
@@ -397,3 +419,9 @@ export class Renderer extends ChildableComponent<
 // HACK: THIS HAS TO STAY DOWN HERE
 // if you try to move it up to the top of the file, then you'll run into stuff being used before it has been defined.
 import "./plugins";
+import {
+    AssetsPlugin,
+    JavascriptIndexPlugin,
+    MarkedPlugin,
+    NavigationPlugin,
+} from "./plugins";

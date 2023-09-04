@@ -250,8 +250,8 @@ export class Context {
      * @param reflection  The triggering reflection.
      * @param node  The triggering TypeScript node if available.
      */
-    trigger(name: string, reflection: Reflection, node?: ts.Node) {
-        this.converter.trigger(name, this, reflection, node);
+    trigger(name: "createDeclaration", reflection: DeclarationReflection) {
+        this.converter.trigger(name, this, reflection);
     }
 
     /** @internal */

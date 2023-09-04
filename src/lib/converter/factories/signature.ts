@@ -159,7 +159,11 @@ function convertParameters(
         paramRefl.comment ||= context.getComment(param, paramRefl.kind);
 
         context.registerReflection(paramRefl, param);
-        context.trigger(ConverterEvents.CREATE_PARAMETER, paramRefl);
+        context.converter.trigger(
+            ConverterEvents.CREATE_PARAMETER,
+            context,
+            paramRefl
+        );
 
         let type: ts.Type | ts.TypeNode | undefined;
         if (declaration) {
@@ -228,7 +232,11 @@ export function convertParameterNodes(
             paramRefl,
             context.getSymbolAtLocation(param)
         );
-        context.trigger(ConverterEvents.CREATE_PARAMETER, paramRefl);
+        context.converter.trigger(
+            ConverterEvents.CREATE_PARAMETER,
+            context,
+            paramRefl
+        );
 
         paramRefl.type = context.converter.convertType(
             context.withScope(paramRefl),
@@ -295,7 +303,11 @@ function convertTypeParameters(
         }
 
         context.registerReflection(paramRefl, param.getSymbol());
-        context.trigger(ConverterEvents.CREATE_TYPE_PARAMETER, paramRefl);
+        context.converter.trigger(
+            ConverterEvents.CREATE_TYPE_PARAMETER,
+            context,
+            paramRefl
+        );
 
         return paramRefl;
     });
@@ -336,7 +348,12 @@ export function createTypeParamReflection(
         paramRefl.comment = context.getJsDocComment(param.parent);
     }
 
-    context.trigger(ConverterEvents.CREATE_TYPE_PARAMETER, paramRefl, param);
+    context.converter.trigger(
+        ConverterEvents.CREATE_TYPE_PARAMETER,
+        context,
+        paramRefl,
+        param
+    );
     return paramRefl;
 }
 
