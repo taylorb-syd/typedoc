@@ -43,11 +43,11 @@ export abstract class ContextAwareRendererComponent extends RendererComponent {
      * @param renderer  The renderer this plugin should be attached to.
      */
     protected override initialize() {
-        this.listenTo(this.owner, {
-            [RendererEvent.BEGIN]: this.onBeginRenderer,
-            [PageEvent.BEGIN]: this.onBeginPage,
-            [RendererEvent.END]: () => this.absoluteToRelativePathMap.clear(),
-        });
+        this.owner.on(RendererEvent.BEGIN, this.onBeginRenderer.bind(this));
+        this.owner.on(PageEvent.BEGIN, this.onBeginPage.bind(this));
+        this.owner.on(RendererEvent.END, () =>
+            this.absoluteToRelativePathMap.clear()
+        );
     }
 
     private absoluteToRelativePathMap = new Map<string, string>();

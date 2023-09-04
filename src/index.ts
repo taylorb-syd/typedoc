@@ -1,6 +1,5 @@
 export { Application } from "./lib/application";
 
-export { EventDispatcher, Event } from "./lib/utils/events";
 export { resetReflectionID } from "./lib/models/reflections/abstract";
 /**
  * All symbols documented under the Models namespace are also available in the root import.
@@ -57,6 +56,7 @@ export {
     TypeDocReader,
     EntryPointStrategy,
     EventHooks,
+    EventDispatcher,
     MinimalSourceFile,
     normalizePath,
 } from "./lib/utils";
@@ -86,8 +86,6 @@ export type {
     EnumKeys,
     JsDocCompatibility,
 } from "./lib/utils";
-
-export type { EventMap, EventCallback } from "./lib/utils/events";
 
 export {
     JSONOutput,

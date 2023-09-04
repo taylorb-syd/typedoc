@@ -26,9 +26,45 @@ function exec(command) {
     });
 }
 
+async function getPackages(search) {
+    const query = `https://www.npmjs.com/search?q=${encodeURIComponent(
+        search
+    )}`;
+
+    const results = [];
+    let total = 0;
+    let page = 0;
+
+    do {
+        const data = JSON.parse(
+            await exec(`curl -s "${query}&page=${page++}" -H "x-spiferack: 1"`)
+        );
+
+        total = data.total;
+        results.push(...data.objects.map((x) => x.package));
+    } while (results.length < total);
+
+    return results;
+}
+
 async function getPlugins() {
-    const plugins = JSON.parse(await exec("npm search --json typedocplugin"));
-    return plugins.filter((plugin) => Date.parse(plugin.date) > CUTOFF_MS);
+    const plugins = (
+        await Promise.all([
+            getPackages("keywords:typedoc-plugin"),
+            getPackages("keywords:typedocplugin"),
+            getPackages("keywords:typedoc-theme"),
+        ])
+    ).flat();
+
+    console.log(`Search found ${plugins.length} plugins`);
+    for (let i = plugins.length - 1; i >= 0; i--) {
+        if (plugins.findIndex((p) => p.name === plugins[i].name) !== i) {
+            plugins.splice(i, 1);
+        }
+    }
+    console.log(`Reduced to ${plugins.length} by removing duplicates`);
+
+    return plugins.filter((plugin) => plugin.date.ts > CUTOFF_MS);
 }
 
 function getTarballUrl(package) {
@@ -63,9 +99,10 @@ async function inflate(file) {
     await exec(
         `tar -C "${file.replace(".tgz", "")}" -xf "${file.replace(
             ".tgz",
-            ".tar",
-        )}"`,
+            ".tar"
+        )}"`
     );
+    await fs.promises.rm(file.replace(".tgz", ".tar"));
 }
 
 /** @param {string[]} args */
@@ -73,14 +110,14 @@ async function main(args) {
     const outDir = path.resolve(args[0] || "../typedoc_plugins");
     const plugins = await getPlugins();
     console.log(
-        `Found ${plugins.length} plugins updated in the past ${CUTOFF_DAYS} days.`,
+        `Found ${plugins.length} plugins updated in the past ${CUTOFF_DAYS} days.`
     );
     const tarballs = await Promise.all(plugins.map(getTarballUrl));
     console.log(`Downloading tarballs...`);
     await fs.promises.rm(outDir, { recursive: true, force: true });
     await fs.promises.mkdir(outDir, { recursive: true });
     const tarballFiles = await Promise.all(
-        tarballs.map((tar) => downloadTarball(tar, outDir)),
+        tarballs.map((tar) => downloadTarball(tar, outDir))
     );
     console.log(`Inflating...`);
     await Promise.all(tarballFiles.map(inflate));

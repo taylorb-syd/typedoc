@@ -1,8 +1,12 @@
 /* eslint-disable no-console */
 
+/// <reference lib="esnext.disposable" />
 import { performance } from "perf_hooks";
 
-const benchmarks: { name: string; calls: number; time: number }[] = [];
+type Benchmark = { name: string; calls: number; time: number };
+const benchmarks: Benchmark[] = [];
+
+(Symbol as any).dispose ??= Symbol("Symbol.dispose");
 
 export function bench<T extends Function>(fn: T, name: string = fn.name): T {
     const matching = benchmarks.find((b) => b.name === name);
@@ -59,6 +63,26 @@ export function Bench<T extends Function>(
 
 export function measure<T>(cb: () => T): T {
     return bench(cb, "measure()")();
+}
+
+export class Measurement {
+    start = Date.now();
+    private timer: Benchmark
+
+    constructor(name: string) {
+        const matching = benchmarks.find((b) => b.name === name);
+        this.timer = matching || {
+            name,
+            calls: 0,
+            time: 0,
+        };
+        if (!matching) benchmarks.push(this.timer);
+    }
+
+    [Symbol.dispose]() {
+        this.timer.calls += 1;
+        this.timer.time += Date.now() - this.start;
+    }
 }
 
 process.on("exit", () => {

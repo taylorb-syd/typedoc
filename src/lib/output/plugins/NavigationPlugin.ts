@@ -11,19 +11,16 @@ const gzipP = promisify(gzip);
 @Component({ name: "navigation-tree" })
 export class NavigationPlugin extends RendererComponent {
     override initialize() {
-        this.listenTo(this.owner, RendererEvent.BEGIN, this.onRendererBegin);
+        this.owner.on(RendererEvent.BEGIN, this.onRendererBegin.bind(this));
     }
 
-    private onRendererBegin(event: RendererEvent) {
+    private onRendererBegin() {
         if (!(this.owner.theme instanceof DefaultTheme)) {
-            return;
-        }
-        if (event.isDefaultPrevented) {
             return;
         }
 
         this.owner.preRenderAsyncJobs.push((event) =>
-            this.buildNavigationIndex(event),
+            this.buildNavigationIndex(event)
         );
     }
 
@@ -31,19 +28,19 @@ export class NavigationPlugin extends RendererComponent {
         const navigationJs = Path.join(
             event.outputDirectory,
             "assets",
-            "navigation.js",
+            "navigation.js"
         );
 
         const nav = (this.owner.theme as DefaultTheme).getNavigation(
-            event.project,
+            event.project
         );
         const gz = await gzipP(Buffer.from(JSON.stringify(nav)));
 
         await writeFile(
             navigationJs,
             `window.navigationData = "data:application/octet-stream;base64,${gz.toString(
-                "base64",
-            )}"`,
+                "base64"
+            )}"`
         );
     }
 }

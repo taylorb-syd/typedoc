@@ -229,7 +229,7 @@ export class Renderer extends ChildableComponent<
      */
     async render(
         project: ProjectReflection,
-        outputDirectory: string,
+        outputDirectory: string
     ): Promise<void> {
         setRenderSettings({ pretty: this.pretty });
 
@@ -243,32 +243,24 @@ export class Renderer extends ChildableComponent<
             return;
         }
 
-        const output = new RendererEvent(
-            RendererEvent.BEGIN,
-            outputDirectory,
-            project,
-        );
+        const output = new RendererEvent(outputDirectory, project);
         output.urls = this.theme!.getUrls(project);
 
-        this.trigger(output);
+        this.trigger(RendererEvent.BEGIN, output);
         await this.runPreRenderJobs(output);
 
-        if (!output.isDefaultPrevented) {
-            this.application.logger.verbose(
-                `There are ${output.urls.length} pages to write.`,
-            );
-            output.urls.forEach((mapping) => {
-                this.renderDocument(...output.createPageEvent(mapping));
-                validateStateIsClean(mapping.url);
-            });
+        this.application.logger.verbose(
+            `There are ${output.urls.length} pages to write.`
+        );
+        output.urls.forEach((mapping) => {
+            this.renderDocument(...output.createPageEvent(mapping));
+            validateStateIsClean(mapping.url);
+        });
 
-            await Promise.all(
-                this.postRenderAsyncJobs.map((job) => job(output)),
-            );
-            this.postRenderAsyncJobs = [];
+        await Promise.all(this.postRenderAsyncJobs.map((job) => job(output)));
+        this.postRenderAsyncJobs = [];
 
-            this.trigger(RendererEvent.END, output);
-        }
+        this.trigger(RendererEvent.END, output);
 
         this.theme = void 0;
         this.hooks.restoreMomento(momento);
@@ -282,7 +274,7 @@ export class Renderer extends ChildableComponent<
         this.preRenderAsyncJobs = [];
 
         this.application.logger.verbose(
-            `Pre render async jobs took ${Date.now() - start}ms`,
+            `Pre render async jobs took ${Date.now() - start}ms`
         );
     }
 
@@ -298,14 +290,10 @@ export class Renderer extends ChildableComponent<
      */
     private renderDocument(
         template: RenderTemplate<PageEvent<Reflection>>,
-        page: PageEvent<Reflection>,
+        page: PageEvent<Reflection>
     ) {
         const momento = this.hooks.saveMomento();
         this.trigger(PageEvent.BEGIN, page);
-        if (page.isDefaultPrevented) {
-            this.hooks.restoreMomento(momento);
-            return false;
-        }
 
         if (page.model instanceof Reflection) {
             page.contents = this.theme!.render(page, template);
@@ -315,10 +303,6 @@ export class Renderer extends ChildableComponent<
 
         this.trigger(PageEvent.END, page);
         this.hooks.restoreMomento(momento);
-
-        if (page.isDefaultPrevented) {
-            return false;
-        }
 
         try {
             writeFileSync(page.filename, page.contents);
@@ -344,7 +328,7 @@ export class Renderer extends ChildableComponent<
                         this.themeName
                     }' is not defined. The available themes are: ${[
                         ...this.themes.keys(),
-                    ].join(", ")}`,
+                    ].join(", ")}`
                 );
                 return false;
             } else {
@@ -371,7 +355,7 @@ export class Renderer extends ChildableComponent<
                 });
             } catch (error) {
                 this.application.logger.warn(
-                    "Could not empty the output directory.",
+                    "Could not empty the output directory."
                 );
                 return false;
             }
@@ -381,7 +365,7 @@ export class Renderer extends ChildableComponent<
             fs.mkdirSync(directory, { recursive: true });
         } catch (error) {
             this.application.logger.error(
-                `Could not create output directory ${directory}.`,
+                `Could not create output directory ${directory}.`
             );
             return false;
         }
@@ -396,7 +380,7 @@ export class Renderer extends ChildableComponent<
                 fs.writeFileSync(path.join(directory, ".nojekyll"), text);
             } catch (error) {
                 this.application.logger.warn(
-                    "Could not create .nojekyll file.",
+                    "Could not create .nojekyll file."
                 );
                 return false;
             }

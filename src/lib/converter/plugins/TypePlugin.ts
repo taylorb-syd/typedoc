@@ -22,14 +22,13 @@ export class TypePlugin extends ConverterComponent {
      * Create a new TypeHandler instance.
      */
     override initialize() {
-        this.listenTo(this.owner, {
-            [Converter.EVENT_RESOLVE]: this.onResolve,
-            [Converter.EVENT_RESOLVE_END]: this.onResolveEnd,
-            [Converter.EVENT_END]: () => this.reflections.clear(),
-        });
-        this.listenTo(this.application, {
-            [ApplicationEvents.REVIVE]: this.onRevive,
-        });
+        this.owner.on(Converter.EVENT_RESOLVE, this.onResolve.bind(this));
+        this.owner.on(
+            Converter.EVENT_RESOLVE_END,
+            this.onResolveEnd.bind(this)
+        );
+        this.owner.on(Converter.EVENT_END, () => this.reflections.clear());
+        this.application.on(ApplicationEvents.REVIVE, this.onRevive.bind(this));
     }
 
     private onRevive(project: ProjectReflection) {
@@ -37,7 +36,7 @@ export class TypePlugin extends ConverterComponent {
             this.resolve(
                 project,
                 project.reflections[id],
-                /* create links */ false,
+                /* create links */ false
             );
         }
         this.finishResolve(project);
@@ -51,7 +50,7 @@ export class TypePlugin extends ConverterComponent {
     private resolve(
         project: ProjectReflection,
         reflection: Reflection,
-        createLinks = true,
+        createLinks = true
     ) {
         if (!(reflection instanceof DeclarationReflection)) return;
 
@@ -66,8 +65,8 @@ export class TypePlugin extends ConverterComponent {
                         ReferenceType.createResolvedReference(
                             reflection.name,
                             reflection,
-                            project,
-                        ),
+                            project
+                        )
                     );
                 }
             });
@@ -81,8 +80,8 @@ export class TypePlugin extends ConverterComponent {
                         ReferenceType.createResolvedReference(
                             reflection.name,
                             reflection,
-                            project,
-                        ),
+                            project
+                        )
                     );
                 }
             });
@@ -90,7 +89,7 @@ export class TypePlugin extends ConverterComponent {
 
         function walk(
             types: Type[] | undefined,
-            callback: { (declaration: DeclarationReflection): void },
+            callback: { (declaration: DeclarationReflection): void }
         ) {
             if (!types) {
                 return;
@@ -149,7 +148,7 @@ export class TypePlugin extends ConverterComponent {
                 ReferenceType.createResolvedReference(
                     reflection.name,
                     reflection,
-                    project,
+                    project
                 ),
             ]);
             hierarchy.isTarget = true;

@@ -41,15 +41,12 @@ export class CategoryPlugin extends ConverterComponent {
      * Create a new CategoryPlugin instance.
      */
     override initialize() {
-        this.listenTo(
-            this.owner,
-            {
-                [Converter.EVENT_BEGIN]: this.onBegin,
-                [Converter.EVENT_RESOLVE]: this.onResolve,
-                [Converter.EVENT_RESOLVE_END]: this.onEndResolve,
-            },
-            undefined,
-            -200,
+        this.owner.on(Converter.EVENT_BEGIN, this.onBegin.bind(this), -200);
+        this.owner.on(Converter.EVENT_RESOLVE, this.onResolve.bind(this), -200);
+        this.owner.on(
+            Converter.EVENT_RESOLVE_END,
+            this.onEndResolve.bind(this),
+            -200
         );
     }
 
@@ -99,8 +96,8 @@ export class CategoryPlugin extends ConverterComponent {
             context.logger.warn(
                 `Not all categories specified in searchCategoryBoosts were used in the documentation.` +
                     ` The unused categories were:\n\t${Array.from(
-                        unusedBoosts,
-                    ).join("\n\t")}`,
+                        unusedBoosts
+                    ).join("\n\t")}`
             );
         }
     }
@@ -158,7 +155,7 @@ export class CategoryPlugin extends ConverterComponent {
      * @returns An array containing all children of the given reflection categorized
      */
     private getReflectionCategories(
-        reflections: DeclarationReflection[],
+        reflections: DeclarationReflection[]
     ): ReflectionCategory[] {
         const categories = new Map<string, ReflectionCategory>();
 
@@ -234,7 +231,7 @@ export class CategoryPlugin extends ConverterComponent {
      */
     private static sortCatCallback(
         a: ReflectionCategory,
-        b: ReflectionCategory,
+        b: ReflectionCategory
     ): number {
         let aWeight = CategoryPlugin.WEIGHTS.indexOf(a.title);
         let bWeight = CategoryPlugin.WEIGHTS.indexOf(b.title);
@@ -263,7 +260,7 @@ export class CategoryPlugin extends ConverterComponent {
             for (const tag of comment.blockTags) {
                 if (tag.tag === "@category") {
                     categories.add(
-                        Comment.combineDisplayParts(tag.content).trim(),
+                        Comment.combineDisplayParts(tag.content).trim()
                     );
                 }
             }

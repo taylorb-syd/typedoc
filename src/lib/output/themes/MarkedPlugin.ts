@@ -55,7 +55,7 @@ export class MarkedPlugin extends ContextAwareRendererComponent {
      */
     override initialize() {
         super.initialize();
-        this.listenTo(this.owner, MarkdownEvent.PARSE, this.onParseMarkdown);
+        this.owner.on(MarkdownEvent.PARSE, this.onParseMarkdown.bind(this));
     }
 
     /**
@@ -95,17 +95,12 @@ output file :
                 path = Path.join(this.includes!, path.trim());
                 if (isFile(path)) {
                     const contents = readFile(path);
-                    const event = new MarkdownEvent(
-                        MarkdownEvent.INCLUDE,
-                        page,
-                        contents,
-                        contents,
-                    );
-                    this.owner.trigger(event);
+                    const event = new MarkdownEvent(page, contents, contents);
+                    this.owner.trigger(MarkdownEvent.INCLUDE, event);
                     return event.parsedText;
                 } else {
                     this.application.logger.warn(
-                        "Could not find file to include: " + path,
+                        "Could not find file to include: " + path
                     );
                     return "";
                 }
@@ -122,17 +117,17 @@ output file :
                         return this.getRelativeUrl("media") + "/" + path;
                     } else {
                         this.application.logger.warn(
-                            "Could not find media file: " + fileName,
+                            "Could not find media file: " + fileName
                         );
                         return match;
                     }
-                },
+                }
             );
         }
 
-        const event = new MarkdownEvent(MarkdownEvent.PARSE, page, text, text);
+        const event = new MarkdownEvent(page, text, text);
 
-        this.owner.trigger(event);
+        this.owner.trigger(MarkdownEvent.PARSE, event);
         return event.parsedText;
     }
 
@@ -156,7 +151,7 @@ output file :
             } else {
                 this.application.logger.warn(
                     "Could not find provided includes directory: " +
-                        this.includeSource,
+                        this.includeSource
                 );
             }
         }
@@ -172,7 +167,7 @@ output file :
                 this.mediaDirectory = undefined;
                 this.application.logger.warn(
                     "Could not find provided media directory: " +
-                        this.mediaSource,
+                        this.mediaSource
                 );
             }
         }
@@ -185,7 +180,7 @@ output file :
      */
     private createMarkedOptions(): Marked.marked.MarkedOptions {
         const markedOptions = (this.application.options.getValue(
-            "markedOptions",
+            "markedOptions"
         ) ?? {}) as Marked.marked.MarkedOptions;
 
         // Set some default values if they are not specified via the TypeDoc option
@@ -229,7 +224,7 @@ function renderCode(
     this: Marked.marked.Renderer,
     code: string,
     infostring: string | undefined,
-    escaped: boolean,
+    escaped: boolean
 ) {
     const lang = (infostring || "").match(/\S*/)![0];
     if (this.options.highlight) {

@@ -6,7 +6,7 @@ import type { ModelToObject } from "./schema";
 import type { SerializerComponent } from "./components";
 import { insertPrioritySorted } from "../utils/array";
 
-export class Serializer extends EventDispatcher {
+export class Serializer extends EventDispatcher<any> {
     /**
      * Triggered when the {@link Serializer} begins transforming a project.
      * @event EVENT_BEGIN
@@ -31,13 +31,13 @@ export class Serializer extends EventDispatcher {
     }
 
     toObject<T extends { toObject(serializer: Serializer): ModelToObject<T> }>(
-        value: T,
+        value: T
     ): ModelToObject<T>;
     toObject<T extends { toObject(serializer: Serializer): ModelToObject<T> }>(
-        value: T | undefined,
+        value: T | undefined
     ): ModelToObject<T> | undefined;
     toObject(
-        value: { toObject(serializer: Serializer): any } | undefined,
+        value: { toObject(serializer: Serializer): any } | undefined
     ): unknown {
         if (value === undefined) {
             return undefined;
@@ -47,12 +47,12 @@ export class Serializer extends EventDispatcher {
             .filter((s) => s.supports(value))
             .reduce(
                 (val, s) => s.toObject(value, val, this),
-                value.toObject(this),
+                value.toObject(this)
             );
     }
 
     toObjectsOptional<
-        T extends { toObject(serializer: Serializer): ModelToObject<T> },
+        T extends { toObject(serializer: Serializer): ModelToObject<T> }
     >(value: T[] | undefined): ModelToObject<T>[] | undefined {
         if (!value || value.length === 0) {
             return undefined;
@@ -68,21 +68,17 @@ export class Serializer extends EventDispatcher {
      */
     projectToObject(
         value: ProjectReflection,
-        projectRoot: string,
+        projectRoot: string
     ): ModelToObject<ProjectReflection> {
         this.projectRoot = projectRoot;
 
-        const eventBegin = new SerializeEvent(Serializer.EVENT_BEGIN, value);
-        this.trigger(eventBegin);
+        const eventBegin = new SerializeEvent(value);
+        this.trigger(Serializer.EVENT_BEGIN, eventBegin);
 
         const project = this.toObject(value);
 
-        const eventEnd = new SerializeEvent(
-            Serializer.EVENT_END,
-            value,
-            project,
-        );
-        this.trigger(eventEnd);
+        const eventEnd = new SerializeEvent(value, project);
+        this.trigger(Serializer.EVENT_END, eventEnd);
 
         return project;
     }

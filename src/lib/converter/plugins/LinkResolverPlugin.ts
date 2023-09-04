@@ -16,12 +16,15 @@ export class LinkResolverPlugin extends ConverterComponent {
 
     override initialize() {
         super.initialize();
-        this.owner.on(ConverterEvents.RESOLVE_END, this.onResolve, this, -300);
+        this.owner.on(
+            ConverterEvents.RESOLVE_END,
+            this.onResolve.bind(this),
+            -300
+        );
         this.application.on(
             ApplicationEvents.REVIVE,
-            this.resolveLinks,
-            this,
-            -300,
+            this.resolveLinks.bind(this),
+            -300
         );
     }
 
@@ -42,7 +45,7 @@ export class LinkResolverPlugin extends ConverterComponent {
             ) {
                 reflection.readme = this.owner.resolveLinks(
                     reflection.readme,
-                    reflection,
+                    reflection
                 );
             }
         }
@@ -53,14 +56,14 @@ export class LinkResolverPlugin extends ConverterComponent {
 
         for (const { type, owner } of discoverAllReferenceTypes(
             project,
-            false,
+            false
         )) {
             if (!type.reflection) {
                 const resolveResult = this.owner.resolveExternalLink(
                     type.toDeclarationReference(),
                     owner,
                     undefined,
-                    type.symbolId,
+                    type.symbolId
                 );
                 switch (typeof resolveResult) {
                     case "string":

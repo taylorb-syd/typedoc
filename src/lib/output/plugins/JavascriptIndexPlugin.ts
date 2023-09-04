@@ -40,7 +40,7 @@ export class JavascriptIndexPlugin extends RendererComponent {
      * Create a new JavascriptIndexPlugin instance.
      */
     override initialize() {
-        this.listenTo(this.owner, RendererEvent.BEGIN, this.onRendererBegin);
+        this.owner.on(RendererEvent.BEGIN, this.onRendererBegin.bind(this));
     }
 
     /**
@@ -48,16 +48,13 @@ export class JavascriptIndexPlugin extends RendererComponent {
      *
      * @param event  An event object describing the current render operation.
      */
-    private onRendererBegin(event: RendererEvent) {
+    private onRendererBegin() {
         if (!(this.owner.theme instanceof DefaultTheme)) {
-            return;
-        }
-        if (event.isDefaultPrevented) {
             return;
         }
 
         this.owner.preRenderAsyncJobs.push((event) =>
-            this.buildSearchIndex(event),
+            this.buildSearchIndex(event)
         );
     }
 
@@ -67,7 +64,7 @@ export class JavascriptIndexPlugin extends RendererComponent {
         const rows: SearchDocument[] = [];
 
         const initialSearchResults = Object.values(
-            event.project.reflections,
+            event.project.reflections
         ).filter((refl) => {
             return (
                 refl instanceof DeclarationReflection &&
@@ -77,23 +74,16 @@ export class JavascriptIndexPlugin extends RendererComponent {
             );
         }) as DeclarationReflection[];
 
-        const indexEvent = new IndexEvent(
-            IndexEvent.PREPARE_INDEX,
-            initialSearchResults,
-        );
+        const indexEvent = new IndexEvent(initialSearchResults);
 
-        this.owner.trigger(indexEvent);
-
-        if (indexEvent.isDefaultPrevented) {
-            return;
-        }
+        this.owner.trigger(IndexEvent.PREPARE_INDEX, indexEvent);
 
         const builder = new Builder();
         builder.pipeline.add(trimmer);
 
         builder.ref("id");
         for (const [key, boost] of Object.entries(
-            indexEvent.searchFieldWeights,
+            indexEvent.searchFieldWeights
         )) {
             builder.field(key, { boost });
         }
@@ -131,7 +121,7 @@ export class JavascriptIndexPlugin extends RendererComponent {
                     ...indexEvent.searchFields[rows.length],
                     id: rows.length,
                 },
-                { boost },
+                { boost }
             );
             rows.push(row);
         }
@@ -141,7 +131,7 @@ export class JavascriptIndexPlugin extends RendererComponent {
         const jsonFileName = Path.join(
             event.outputDirectory,
             "assets",
-            "search.js",
+            "search.js"
         );
 
         const jsonData = JSON.stringify({
@@ -153,8 +143,8 @@ export class JavascriptIndexPlugin extends RendererComponent {
         await writeFile(
             jsonFileName,
             `window.searchData = "data:application/octet-stream;base64,${data.toString(
-                "base64",
-            )}";`,
+                "base64"
+            )}";`
         );
     }
 
@@ -164,7 +154,7 @@ export class JavascriptIndexPlugin extends RendererComponent {
         const comments: Comment[] = [];
         if (reflection.comment) comments.push(reflection.comment);
         reflection.signatures?.forEach(
-            (s) => s.comment && comments.push(s.comment),
+            (s) => s.comment && comments.push(s.comment)
         );
         reflection.getSignature?.comment &&
             comments.push(reflection.getSignature.comment);

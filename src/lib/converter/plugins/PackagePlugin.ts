@@ -52,18 +52,17 @@ export class PackagePlugin extends ConverterComponent {
     private packageJson?: { name: string; version?: string };
 
     override initialize() {
-        this.listenTo(this.owner, {
-            [Converter.EVENT_BEGIN]: this.onBegin,
-            [Converter.EVENT_RESOLVE_BEGIN]: this.onBeginResolve,
-            [Converter.EVENT_END]: () => {
-                delete this.readmeFile;
-                delete this.readmeContents;
-                delete this.packageJson;
-            },
+        this.owner.on(Converter.EVENT_BEGIN, this.onBegin.bind(this));
+        this.owner.on(
+            Converter.EVENT_RESOLVE_BEGIN,
+            this.onBeginResolve.bind(this)
+        );
+        this.owner.on(Converter.EVENT_END, () => {
+            delete this.readmeFile;
+            delete this.readmeContents;
+            delete this.packageJson;
         });
-        this.listenTo(this.application, {
-            [ApplicationEvents.REVIVE]: this.onRevive,
-        });
+        this.application.on(ApplicationEvents.REVIVE, this.onRevive.bind(this));
     }
 
     private onRevive(project: ProjectReflection) {
@@ -89,7 +88,7 @@ export class PackagePlugin extends ConverterComponent {
             Path.resolve(deriveRootDir(entryFiles));
 
         this.application.logger.verbose(
-            `Begin readme.md/package.json search at ${nicePath(dirName)}`,
+            `Begin readme.md/package.json search at ${nicePath(dirName)}`
         );
 
         this.packageJson = discoverPackageJson(dirName)?.content;
@@ -103,14 +102,14 @@ export class PackagePlugin extends ConverterComponent {
             // Readme path provided, read only that file.
             try {
                 this.readmeContents = this.processReadmeContents(
-                    readFile(this.readme),
+                    readFile(this.readme)
                 );
                 this.readmeFile = this.readme;
             } catch {
                 this.application.logger.error(
                     `Provided README path, ${nicePath(
-                        this.readme,
-                    )} could not be read.`,
+                        this.readme
+                    )} could not be read.`
                 );
             }
         } else {
@@ -118,13 +117,13 @@ export class PackagePlugin extends ConverterComponent {
             const result = discoverInParentDir(
                 "readme.md",
                 dirName,
-                (content) => content,
+                (content) => content
             );
 
             if (result) {
                 this.readmeFile = result.file;
                 this.readmeContents = this.processReadmeContents(
-                    result.content,
+                    result.content
                 );
             }
         }
@@ -134,7 +133,7 @@ export class PackagePlugin extends ConverterComponent {
         if (this.stripYamlFrontmatter) {
             return contents.replace(
                 /^\s*---\r?\n[\s\S]*?\r?\n---\s*?\r?\n\s*/,
-                "",
+                ""
             );
         }
         return contents;
@@ -147,7 +146,7 @@ export class PackagePlugin extends ConverterComponent {
     private addEntries(project: ProjectReflection) {
         if (this.readmeFile && this.readmeContents) {
             const comment = this.application.converter.parseRawComment(
-                new MinimalSourceFile(this.readmeContents, this.readmeFile),
+                new MinimalSourceFile(this.readmeContents, this.readmeFile)
             );
 
             if (comment.blockTags.length || comment.modifierTags.size) {
@@ -157,8 +156,8 @@ export class PackagePlugin extends ConverterComponent {
                 ];
                 this.application.logger.warn(
                     `Block and modifier tags will be ignored within the readme:\n\t${ignored.join(
-                        "\n\t",
-                    )}`,
+                        "\n\t"
+                    )}`
                 );
             }
 
@@ -173,12 +172,12 @@ export class PackagePlugin extends ConverterComponent {
             if (this.includeVersion) {
                 project.packageVersion = this.packageJson.version?.replace(
                     /^v/,
-                    "",
+                    ""
                 );
             }
         } else if (!project.name) {
             this.application.logger.warn(
-                'The --name option was not specified, and no package.json was found. Defaulting project name to "Documentation".',
+                'The --name option was not specified, and no package.json was found. Defaulting project name to "Documentation".'
             );
             project.name = "Documentation";
         }

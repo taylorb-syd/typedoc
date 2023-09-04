@@ -1,6 +1,5 @@
 import * as Path from "path";
 
-import { Event } from "../utils/events";
 import type { ProjectReflection } from "../models/reflections/project";
 import type { RenderTemplate, UrlMapping } from "./models/UrlMapping";
 import type {
@@ -16,7 +15,7 @@ import type {
  * @see {@link Renderer.EVENT_BEGIN}
  * @see {@link Renderer.EVENT_END}
  */
-export class RendererEvent extends Event {
+export class RendererEvent {
     /**
      * The project the renderer is currently processing.
      */
@@ -46,12 +45,7 @@ export class RendererEvent extends Event {
      */
     static readonly END = "endRender";
 
-    constructor(
-        name: string,
-        outputDirectory: string,
-        project: ProjectReflection,
-    ) {
-        super(name);
+    constructor(outputDirectory: string, project: ProjectReflection) {
         this.outputDirectory = outputDirectory;
         this.project = project;
     }
@@ -64,9 +58,9 @@ export class RendererEvent extends Event {
      * @returns A newly created {@link PageEvent} instance.
      */
     public createPageEvent<Model>(
-        mapping: UrlMapping<Model>,
+        mapping: UrlMapping<Model>
     ): [RenderTemplate<PageEvent<Model>>, PageEvent<Model>] {
-        const event = new PageEvent<Model>(PageEvent.BEGIN, mapping.model);
+        const event = new PageEvent<Model>(mapping.model);
         event.project = this.project;
         event.url = mapping.url;
         event.filename = Path.join(this.outputDirectory, mapping.url);
@@ -81,7 +75,7 @@ export class RendererEvent extends Event {
  * @see {@link Renderer.EVENT_BEGIN_PAGE}
  * @see {@link Renderer.EVENT_END_PAGE}
  */
-export class PageEvent<out Model = unknown> extends Event {
+export class PageEvent<out Model = unknown> {
     /**
      * The project the renderer is currently processing.
      */
@@ -133,8 +127,7 @@ export class PageEvent<out Model = unknown> extends Event {
      */
     static readonly END = "endPage";
 
-    constructor(name: string, model: Model) {
-        super(name);
+    constructor(model: Model) {
         this.model = model;
     }
 }
@@ -145,7 +138,7 @@ export class PageEvent<out Model = unknown> extends Event {
  * @see {@link MarkdownEvent.PARSE}
  * @see {@link MarkdownEvent.INCLUDE}
  */
-export class MarkdownEvent extends Event {
+export class MarkdownEvent {
     /**
      * The unparsed original text.
      */
@@ -173,13 +166,7 @@ export class MarkdownEvent extends Event {
      */
     static readonly INCLUDE = "includeMarkdown";
 
-    constructor(
-        name: string,
-        page: PageEvent,
-        originalText: string,
-        parsedText: string,
-    ) {
-        super(name);
+    constructor(page: PageEvent, originalText: string, parsedText: string) {
         this.page = page;
         this.originalText = originalText;
         this.parsedText = parsedText;
@@ -189,7 +176,7 @@ export class MarkdownEvent extends Event {
 /**
  * An event emitted when the search index is being prepared.
  */
-export class IndexEvent extends Event {
+export class IndexEvent {
     /**
      * Triggered on the renderer when the search index is being prepared.
      * @event
@@ -237,12 +224,11 @@ export class IndexEvent extends Event {
         this.searchFields.splice(index, 1);
     }
 
-    constructor(name: string, searchResults: DeclarationReflection[]) {
-        super(name);
+    constructor(searchResults: DeclarationReflection[]) {
         this.searchResults = searchResults;
         this.searchFields = Array.from(
             { length: this.searchResults.length },
-            () => ({}),
+            () => ({})
         );
     }
 }

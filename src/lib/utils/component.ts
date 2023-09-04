@@ -1,5 +1,5 @@
 import type { Application } from "../application";
-import { EventDispatcher, Event, EventMap } from "./events";
+import { EventDispatcher } from "./events";
 
 /**
  * Exposes a reference to the root Application component.
@@ -12,7 +12,7 @@ export interface Component extends AbstractComponent<ComponentHost> {}
 
 export interface ComponentClass<
     T extends Component,
-    O extends ComponentHost = ComponentHost,
+    O extends ComponentHost = ComponentHost
 > extends Function {
     new (owner: O): T;
 }
@@ -42,14 +42,14 @@ export function Component(options: ComponentOptions) {
         const proto = target.prototype;
         if (!(proto instanceof AbstractComponent)) {
             throw new Error(
-                "The `Component` decorator can only be used with a subclass of `AbstractComponent`.",
+                "The `Component` decorator can only be used with a subclass of `AbstractComponent`."
             );
         }
 
         if (options.childClass) {
             if (!(proto instanceof ChildableComponent)) {
                 throw new Error(
-                    "The `Component` decorator accepts the parameter `childClass` only when used with a subclass of `ChildableComponent`.",
+                    "The `Component` decorator accepts the parameter `childClass` only when used with a subclass of `ChildableComponent`."
                 );
             }
 
@@ -82,7 +82,7 @@ export function Component(options: ComponentOptions) {
     };
 }
 
-export class ComponentEvent extends Event {
+export class ComponentEvent {
     owner: ComponentHost;
 
     component: AbstractComponent<ComponentHost>;
@@ -92,11 +92,9 @@ export class ComponentEvent extends Event {
     static REMOVED = "componentRemoved";
 
     constructor(
-        name: string,
         owner: ComponentHost,
-        component: AbstractComponent<ComponentHost>,
+        component: AbstractComponent<ComponentHost>
     ) {
-        super(name);
         this.owner = owner;
         this.component = component;
     }
@@ -109,7 +107,7 @@ export class ComponentEvent extends Event {
  * @template O type of component's owner.
  */
 export abstract class AbstractComponent<O extends ComponentHost>
-    extends EventDispatcher
+    extends EventDispatcher<any>
     implements ComponentHost
 {
     /**
@@ -136,19 +134,6 @@ export abstract class AbstractComponent<O extends ComponentHost>
      */
     protected initialize() {
         // empty default implementation
-    }
-
-    protected bubble(name: Event | EventMap | string, ...args: any[]) {
-        super.trigger(name, ...args);
-
-        if (
-            this.owner instanceof AbstractComponent &&
-            this._componentOwner !== null
-        ) {
-            this.owner.bubble(name, ...args);
-        }
-
-        return this;
     }
 
     /**
@@ -179,7 +164,7 @@ export abstract class AbstractComponent<O extends ComponentHost>
  */
 export abstract class ChildableComponent<
     O extends ComponentHost,
-    C extends Component,
+    C extends Component
 > extends AbstractComponent<O> {
     /**
      *
@@ -197,7 +182,7 @@ export abstract class ChildableComponent<
         Object.entries(this._defaultComponents || {}).forEach(
             ([name, component]) => {
                 this.addComponent(name, component);
-            },
+            }
         );
     }
 
@@ -220,7 +205,7 @@ export abstract class ChildableComponent<
 
     addComponent<T extends C>(
         name: string,
-        componentClass: T | ComponentClass<T, O>,
+        componentClass: T | ComponentClass<T, O>
     ): T {
         if (!this._componentChildren) {
             this._componentChildren = {};
@@ -236,13 +221,9 @@ export abstract class ChildableComponent<
                 typeof componentClass === "function"
                     ? new (<ComponentClass<T>>componentClass)(this)
                     : componentClass;
-            const event = new ComponentEvent(
-                ComponentEvent.ADDED,
-                this,
-                component,
-            );
+            const event = new ComponentEvent(this, component);
 
-            this.bubble(event);
+            this.trigger(ComponentEvent.ADDED, event);
             this._componentChildren[name] = component;
 
             return component;
@@ -253,19 +234,17 @@ export abstract class ChildableComponent<
         const component = (this._componentChildren || {})[name];
         if (component) {
             delete this._componentChildren![name];
-            component.stopListening();
-            this.bubble(
-                new ComponentEvent(ComponentEvent.REMOVED, this, component),
+            this.trigger(
+                ComponentEvent.REMOVED,
+                new ComponentEvent(this, component)
             );
             return component;
         }
     }
 
     removeAllComponents() {
-        for (const component of Object.values(this._componentChildren || {})) {
-            component.stopListening();
-        }
-
-        this._componentChildren = {};
+        Object.keys(this._componentChildren || {}).forEach((c) =>
+            this.removeComponent(c)
+        );
     }
 }

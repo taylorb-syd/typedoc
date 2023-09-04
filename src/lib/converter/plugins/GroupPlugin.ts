@@ -35,14 +35,15 @@ export class GroupPlugin extends ConverterComponent {
      * Create a new GroupPlugin instance.
      */
     override initialize() {
-        this.listenTo(this.owner, {
-            [Converter.EVENT_RESOLVE_BEGIN]: () => {
-                this.sortFunction = getSortFunction(this.application.options);
-                GroupPlugin.WEIGHTS = this.groupOrder;
-            },
-            [Converter.EVENT_RESOLVE]: this.onResolve,
-            [Converter.EVENT_RESOLVE_END]: this.onEndResolve,
+        this.owner.on(Converter.EVENT_RESOLVE_BEGIN, () => {
+            this.sortFunction = getSortFunction(this.application.options);
+            GroupPlugin.WEIGHTS = this.groupOrder;
         });
+        this.owner.on(Converter.EVENT_RESOLVE, this.onResolve.bind(this));
+        this.owner.on(
+            Converter.EVENT_RESOLVE_END,
+            this.onEndResolve.bind(this)
+        );
     }
 
     /**
@@ -78,8 +79,8 @@ export class GroupPlugin extends ConverterComponent {
             context.logger.warn(
                 `Not all groups specified in searchGroupBoosts were used in the documentation.` +
                     ` The unused groups were:\n\t${Array.from(
-                        unusedBoosts,
-                    ).join("\n\t")}`,
+                        unusedBoosts
+                    ).join("\n\t")}`
             );
         }
     }
@@ -152,7 +153,7 @@ export class GroupPlugin extends ConverterComponent {
      * @returns An array containing all children of the given reflection grouped by their kind.
      */
     getReflectionGroups(
-        reflections: DeclarationReflection[],
+        reflections: DeclarationReflection[]
     ): ReflectionGroup[] {
         const groups = new Map<string, ReflectionGroup>();
 
