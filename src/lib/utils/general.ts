@@ -54,6 +54,16 @@ export function assertNever(x: never): never {
     );
 }
 
+export function Bound(_method: any, context: ClassMethodDecoratorContext) {
+    const name = context.name;
+    if (context.private) {
+        throw new Error("Cannot bind private methods");
+    }
+    context.addInitializer(function (this: any) {
+        this[name] = this[name].bind(this);
+    });
+}
+
 /**
  * This is a hack to make it possible to detect and warn about installation setups
  * which result in TypeDoc being installed multiple times. If TypeDoc has been loaded

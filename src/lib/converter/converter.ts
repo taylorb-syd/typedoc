@@ -15,9 +15,7 @@ import {
     TypeParameterReflection,
 } from "../models/index";
 import { Context } from "./context";
-import { ConverterComponent } from "./components";
-import { Component, ChildableComponent } from "../utils/component";
-import { Option, MinimalSourceFile, readFile } from "../utils";
+import { Option, MinimalSourceFile, readFile, EventDispatcher } from "../utils";
 import { convertType } from "./types";
 import { ConverterEvents } from "./converter-events";
 import { convertSymbol } from "./symbols";
@@ -52,13 +50,13 @@ interface ConverterEvents {
             | ts.IndexSignatureDeclaration
             | ts.JSDocSignature
         )?,
-        ts.Signature?
+        ts.Signature?,
     ];
     createParameter: [Context, ParameterReflection];
     createTypeParameter: [
         Context,
         TypeParameterReflection,
-        ts.TypeParameterDeclaration?
+        ts.TypeParameterDeclaration?,
     ];
     resolveBegin: [Context];
     resolveReflection: [Context, Reflection];
@@ -68,16 +66,7 @@ interface ConverterEvents {
 /**
  * Compiles source files using TypeScript and converts compiler symbols to reflections.
  */
-@Component({
-    name: "converter",
-    internal: true,
-    childClass: ConverterComponent,
-})
-export class Converter extends ChildableComponent<
-    Application,
-    ConverterComponent,
-    ConverterEvents
-> {
+export class Converter extends EventDispatcher<ConverterEvents> {
     /** @internal */
     @Option("externalPattern")
     accessor externalPattern!: string[];
@@ -213,9 +202,8 @@ export class Converter extends ChildableComponent<
      */
     static readonly EVENT_RESOLVE_END = ConverterEvents.RESOLVE_END;
 
-    constructor(owner: Application) {
-        super(owner);
-
+    constructor(readonly application: Application) {
+        super();
         this.addUnknownSymbolResolver((ref) => {
             // Require global links, matching local ones will likely hide mistakes where the
             // user meant to link to a local type.
@@ -250,13 +238,13 @@ export class Converter extends ChildableComponent<
      * Compile the given source files and create a project reflection for them.
      */
     convert(
-        entryPoints: readonly DocumentationEntryPoint[]
+        entryPoints: readonly DocumentationEntryPoint[],
     ): ProjectReflection {
         const programs = entryPoints.map((e) => e.program);
         this.externalPatternCache = void 0;
 
         const project = new ProjectReflection(
-            this.application.options.getValue("name")
+            this.application.options.getValue("name"),
         );
         const context = new Context(this, programs, project);
 
@@ -275,7 +263,7 @@ export class Converter extends ChildableComponent<
     convertSymbol(
         context: Context,
         symbol: ts.Symbol,
-        exportSymbol?: ts.Symbol
+        exportSymbol?: ts.Symbol,
     ) {
         convertSymbol(context, symbol, exportSymbol);
     }
@@ -290,7 +278,7 @@ export class Converter extends ChildableComponent<
      */
     convertType(
         context: Context,
-        node: ts.TypeNode | ts.Type | undefined
+        node: ts.TypeNode | ts.Type | undefined,
     ): SomeType {
         return convertType(context, node);
     }
@@ -303,7 +291,7 @@ export class Converter extends ChildableComponent<
             lexCommentString(file.text),
             this.config,
             file,
-            this.application.logger
+            this.application.logger,
         );
     }
 
@@ -329,7 +317,7 @@ export class Converter extends ChildableComponent<
         ref: DeclarationReference,
         refl: Reflection,
         part: CommentDisplayPart | undefined,
-        symbolId: ReflectionSymbolId | undefined
+        symbolId: ReflectionSymbolId | undefined,
     ): ExternalResolveResult | string | undefined {
         for (const resolver of this._externalSymbolResolvers) {
             const resolved = resolver(ref, refl, part, symbolId);
@@ -340,11 +328,11 @@ export class Converter extends ChildableComponent<
     resolveLinks(comment: Comment, owner: Reflection): void;
     resolveLinks(
         parts: readonly CommentDisplayPart[],
-        owner: Reflection
+        owner: Reflection,
     ): CommentDisplayPart[];
     resolveLinks(
         comment: Comment | readonly CommentDisplayPart[],
-        owner: Reflection
+        owner: Reflection,
     ): CommentDisplayPart[] | undefined {
         if (comment instanceof Comment) {
             resolveLinks(
@@ -352,7 +340,7 @@ export class Converter extends ChildableComponent<
                 owner,
                 (ref, part, refl, id) =>
                     this.resolveExternalLink(ref, part, refl, id),
-                { preserveLinkText: this.preserveLinkText }
+                { preserveLinkText: this.preserveLinkText },
             );
         } else {
             return resolvePartLinks(
@@ -360,7 +348,7 @@ export class Converter extends ChildableComponent<
                 comment,
                 (ref, part, refl, id) =>
                     this.resolveExternalLink(ref, part, refl, id),
-                { preserveLinkText: this.preserveLinkText }
+                { preserveLinkText: this.preserveLinkText },
             );
         }
     }
@@ -373,7 +361,7 @@ export class Converter extends ChildableComponent<
      */
     private compile(
         entryPoints: readonly DocumentationEntryPoint[],
-        context: Context
+        context: Context,
     ) {
         const entries = entryPoints.map((e) => {
             return {
@@ -386,7 +374,7 @@ export class Converter extends ChildableComponent<
             e.context = this.convertExports(
                 context,
                 e.entryPoint,
-                entries.length === 1
+                entries.length === 1,
             );
         });
         for (const { entryPoint, context } of entries) {
@@ -402,7 +390,7 @@ export class Converter extends ChildableComponent<
     private convertExports(
         context: Context,
         entryPoint: DocumentationEntryPoint,
-        singleEntryPoint: boolean
+        singleEntryPoint: boolean,
     ) {
         const node = entryPoint.sourceFile;
         const entryName = entryPoint.displayName;
@@ -422,7 +410,7 @@ export class Converter extends ChildableComponent<
                 ReflectionKind.Module,
                 symbol,
                 void 0,
-                entryName
+                entryName,
             );
 
             if (!reflection.comment && !symbol) {
@@ -432,7 +420,7 @@ export class Converter extends ChildableComponent<
             if (entryPoint.readmeFile) {
                 const readme = readFile(entryPoint.readmeFile);
                 const comment = this.parseRawComment(
-                    new MinimalSourceFile(readme, entryPoint.readmeFile)
+                    new MinimalSourceFile(readme, entryPoint.readmeFile),
                 );
 
                 if (comment.blockTags.length || comment.modifierTags.size) {
@@ -442,8 +430,8 @@ export class Converter extends ChildableComponent<
                     ];
                     context.logger.warn(
                         `Block and modifier tags will be ignored within the readme:\n\t${ignored.join(
-                            "\n\t"
-                        )}`
+                            "\n\t",
+                        )}`,
                     );
                 }
 
@@ -458,7 +446,7 @@ export class Converter extends ChildableComponent<
 
         const allExports = getExports(context, node, symbol);
         for (const exp of allExports.filter((exp) =>
-            isDirectExport(context.resolveAliasedSymbol(exp), node)
+            isDirectExport(context.resolveAliasedSymbol(exp), node),
         )) {
             this.convertSymbol(moduleContext, exp);
         }
@@ -470,10 +458,10 @@ export class Converter extends ChildableComponent<
         for (const exp of getExports(
             moduleContext,
             node,
-            moduleContext.project.getSymbolFromReflection(moduleContext.scope)
+            moduleContext.project.getSymbolFromReflection(moduleContext.scope),
         ).filter(
             (exp) =>
-                !isDirectExport(moduleContext.resolveAliasedSymbol(exp), node)
+                !isDirectExport(moduleContext.resolveAliasedSymbol(exp), node),
         )) {
             this.convertSymbol(moduleContext, exp);
         }
@@ -493,7 +481,7 @@ export class Converter extends ChildableComponent<
             this.trigger(
                 Converter.EVENT_RESOLVE,
                 context,
-                project.reflections[id]
+                project.reflections[id],
             );
         }
 
@@ -516,12 +504,12 @@ export class Converter extends ChildableComponent<
 
     private isExcluded(symbol: ts.Symbol) {
         this.excludeCache ??= createMinimatch(
-            this.application.options.getValue("exclude")
+            this.application.options.getValue("exclude"),
         );
         const cache = this.excludeCache;
 
         return (symbol.getDeclarations() ?? []).some((node) =>
-            matchesAny(cache, node.getSourceFile().fileName)
+            matchesAny(cache, node.getSourceFile().fileName),
         );
     }
 
@@ -531,7 +519,7 @@ export class Converter extends ChildableComponent<
         const cache = this.externalPatternCache;
 
         return (symbol.getDeclarations() ?? []).some((node) =>
-            matchesAny(cache, node.getSourceFile().fileName)
+            matchesAny(cache, node.getSourceFile().fileName),
         );
     }
 
@@ -539,10 +527,10 @@ export class Converter extends ChildableComponent<
         this._config = {
             blockTags: new Set(this.application.options.getValue("blockTags")),
             inlineTags: new Set(
-                this.application.options.getValue("inlineTags")
+                this.application.options.getValue("inlineTags"),
             ),
             modifierTags: new Set(
-                this.application.options.getValue("modifierTags")
+                this.application.options.getValue("modifierTags"),
             ),
             jsDocCompatibility:
                 this.application.options.getValue("jsDocCompatibility"),
@@ -553,7 +541,7 @@ export class Converter extends ChildableComponent<
 
 function getSymbolForModuleLike(
     context: Context,
-    node: ts.SourceFile | ts.ModuleBlock
+    node: ts.SourceFile | ts.ModuleBlock,
 ) {
     const symbol = context.checker.getSymbolAtLocation(node) ?? node.symbol;
 
@@ -567,8 +555,11 @@ function getSymbolForModuleLike(
     const sourceFile = node.getSourceFile();
     const globalSymbols = context.checker
         .getSymbolsInScope(node, ts.SymbolFlags.ModuleMember)
-        .filter((s) =>
-            s.getDeclarations()?.some((d) => d.getSourceFile() === sourceFile)
+        .filter(
+            (s) =>
+                s
+                    .getDeclarations()
+                    ?.some((d) => d.getSourceFile() === sourceFile),
         );
 
     // Detect declaration files with declare module "foo" as their only export
@@ -580,7 +571,7 @@ function getSymbolForModuleLike(
             ?.every(
                 (declaration) =>
                     ts.isModuleDeclaration(declaration) &&
-                    ts.isStringLiteral(declaration.name)
+                    ts.isStringLiteral(declaration.name),
             )
     ) {
         return globalSymbols[0];
@@ -590,7 +581,7 @@ function getSymbolForModuleLike(
 function getExports(
     context: Context,
     node: ts.SourceFile,
-    symbol: ts.Symbol | undefined
+    symbol: ts.Symbol | undefined,
 ): ts.Symbol[] {
     let result: ts.Symbol[];
 
@@ -608,9 +599,9 @@ function getExports(
                     (s) =>
                         !hasAnyFlag(
                             s.flags,
-                            ts.SymbolFlags.Prototype | ts.SymbolFlags.Value
-                        )
-                )
+                            ts.SymbolFlags.Prototype | ts.SymbolFlags.Value,
+                        ),
+                ),
         );
     } else if (symbol) {
         result = context.checker
@@ -621,7 +612,7 @@ function getExports(
             const globalDecl = node.statements.find(
                 (s) =>
                     ts.isModuleDeclaration(s) &&
-                    s.flags & ts.NodeFlags.GlobalAugmentation
+                    s.flags & ts.NodeFlags.GlobalAugmentation,
             );
 
             if (globalDecl) {
@@ -629,10 +620,11 @@ function getExports(
                 if (globalSymbol) {
                     result = context.checker
                         .getExportsOfModule(globalSymbol)
-                        .filter((exp) =>
-                            exp.declarations?.some(
-                                (d) => d.getSourceFile() === node
-                            )
+                        .filter(
+                            (exp) =>
+                                exp.declarations?.some(
+                                    (d) => d.getSourceFile() === node,
+                                ),
                         );
                 }
             }
@@ -642,10 +634,11 @@ function getExports(
         const sourceFile = node.getSourceFile();
         result = context.checker
             .getSymbolsInScope(node, ts.SymbolFlags.ModuleMember)
-            .filter((s) =>
-                s
-                    .getDeclarations()
-                    ?.some((d) => d.getSourceFile() === sourceFile)
+            .filter(
+                (s) =>
+                    s
+                        .getDeclarations()
+                        ?.some((d) => d.getSourceFile() === sourceFile),
             );
     }
 

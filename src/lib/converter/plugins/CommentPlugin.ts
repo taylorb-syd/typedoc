@@ -1,4 +1,3 @@
-import { Component, ConverterComponent } from "../components";
 import { Converter } from "../converter";
 import type { Context } from "../context";
 import {
@@ -16,13 +15,15 @@ import {
     CommentTag,
 } from "../../models";
 import {
+    Plugin,
     Option,
     filterMap,
     removeIfPresent,
     unique,
     partition,
+    Bound,
 } from "../../utils";
-import { CategoryPlugin } from "./CategoryPlugin";
+import type { Application } from "../../application";
 
 /**
  * These tags are not useful to display in the generated documentation.
@@ -102,8 +103,8 @@ const NEVER_RENDERED = [
  * - Resolve `@link` tags to point to target reflections
  *
  */
-@Component({ name: "comment" })
-export class CommentPlugin extends ConverterComponent {
+@Plugin("typedoc:comment")
+export class CommentPlugin {
     @Option("excludeTags")
     accessor excludeTags!: `@${string}`[];
 
@@ -136,25 +137,25 @@ export class CommentPlugin extends ConverterComponent {
     /**
      * Create a new CommentPlugin instance.
      */
-    override initialize() {
-        this.owner.on(
+    constructor(readonly application: Application) {
+        application.converter.on(
             Converter.EVENT_CREATE_DECLARATION,
-            this.onDeclaration.bind(this)
+            this.onDeclaration,
         );
-        this.owner.on(
+        application.converter.on(
             Converter.EVENT_CREATE_SIGNATURE,
-            this.onDeclaration.bind(this)
+            this.onDeclaration,
         );
-        this.owner.on(
+        application.converter.on(
             Converter.EVENT_CREATE_TYPE_PARAMETER,
-            this.onCreateTypeParameter.bind(this)
+            this.onCreateTypeParameter,
         );
-        this.owner.on(
+        application.converter.on(
             Converter.EVENT_RESOLVE_BEGIN,
-            this.onBeginResolve.bind(this)
+            this.onBeginResolve,
         );
-        this.owner.on(Converter.EVENT_RESOLVE, this.onResolve.bind(this));
-        this.owner.on(Converter.EVENT_END, () => {
+        application.converter.on(Converter.EVENT_RESOLVE, this.onResolve);
+        application.converter.on(Converter.EVENT_END, () => {
             this._excludeKinds = undefined;
         });
     }
@@ -211,7 +212,7 @@ export class CommentPlugin extends ConverterComponent {
             comment.hasModifier("@eventProperty")
         ) {
             comment.blockTags.push(
-                new CommentTag("@group", [{ kind: "text", text: "Events" }])
+                new CommentTag("@group", [{ kind: "text", text: "Events" }]),
             );
             comment.removeModifier("@event");
             comment.removeModifier("@eventProperty");
@@ -219,7 +220,7 @@ export class CommentPlugin extends ConverterComponent {
 
         if (
             reflection.kindOf(
-                ReflectionKind.Module | ReflectionKind.Namespace
+                ReflectionKind.Module | ReflectionKind.Namespace,
             ) ||
             reflection.kind === ReflectionKind.Project
         ) {
@@ -234,9 +235,9 @@ export class CommentPlugin extends ConverterComponent {
      * @param context  The context object describing the current state the converter is in.
      * @param reflection  The reflection that is currently processed.
      */
-    private onCreateTypeParameter(
+    @Bound private onCreateTypeParameter(
         _context: Context,
-        reflection: TypeParameterReflection
+        reflection: TypeParameterReflection,
     ) {
         const comment = reflection.parent?.comment;
         if (comment) {
@@ -247,7 +248,7 @@ export class CommentPlugin extends ConverterComponent {
             if (!tag) {
                 tag = comment.getIdentifiedTag(
                     `<${reflection.name}>`,
-                    "@param"
+                    "@param",
                 );
             }
             if (!tag) {
@@ -269,6 +270,7 @@ export class CommentPlugin extends ConverterComponent {
      * @param reflection  The reflection that is currently processed.
      * @param node  The node that is currently processed if available.
      */
+    @Bound
     private onDeclaration(_context: Context, reflection: Reflection) {
         const comment = reflection.comment;
         if (!comment) return;
@@ -295,6 +297,7 @@ export class CommentPlugin extends ConverterComponent {
      *
      * @param context  The context object describing the current state the converter is in.
      */
+    @Bound
     private onBeginResolve(context: Context) {
         const project = context.project;
         const reflections = Object.values(project.reflections);
@@ -323,10 +326,10 @@ export class CommentPlugin extends ConverterComponent {
                 filterMap(hidden, (reflection) =>
                     reflection.parent?.kindOf(ReflectionKind.SignatureContainer)
                         ? reflection.parent
-                        : void 0
-                ) as DeclarationReflection[]
+                        : void 0,
+                ) as DeclarationReflection[],
             ),
-            (method) => method.getNonIndexSignatures().length === 0
+            (method) => method.getNonIndexSignatures().length === 0,
         );
         allRemoved.forEach((reflection) => {
             project.removeReflection(reflection);
@@ -350,6 +353,7 @@ export class CommentPlugin extends ConverterComponent {
      * @param context  The context object describing the current state the converter is in.
      * @param reflection  The reflection that is currently resolved.
      */
+    @Bound
     private onResolve(context: Context, reflection: Reflection) {
         if (reflection.comment) {
             if (
@@ -360,7 +364,7 @@ export class CommentPlugin extends ConverterComponent {
                     `The label "${
                         reflection.comment.label
                     }" for ${reflection.getFriendlyFullName()} cannot be referenced with a declaration reference. ` +
-                        `Labels may only contain A-Z, 0-9, and _, and may not start with a number.`
+                        `Labels may only contain A-Z, 0-9, and _, and may not start with a number.`,
                 );
             }
 
@@ -375,19 +379,19 @@ export class CommentPlugin extends ConverterComponent {
         if (reflection.type instanceof ReflectionType) {
             this.moveCommentToSignatures(
                 reflection,
-                reflection.type.declaration.getNonIndexSignatures()
+                reflection.type.declaration.getNonIndexSignatures(),
             );
         } else {
             this.moveCommentToSignatures(
                 reflection,
-                reflection.getNonIndexSignatures()
+                reflection.getNonIndexSignatures(),
             );
         }
     }
 
     private moveCommentToSignatures(
         reflection: DeclarationReflection,
-        signatures: SignatureReflection[]
+        signatures: SignatureReflection[],
     ) {
         if (!signatures.length) {
             return;
@@ -412,7 +416,7 @@ export class CommentPlugin extends ConverterComponent {
                 if (parameter.name === "__namedParameters") {
                     const commentParams = childComment.blockTags.filter(
                         (tag) =>
-                            tag.tag === "@param" && !tag.name?.includes(".")
+                            tag.tag === "@param" && !tag.name?.includes("."),
                     );
                     if (
                         signature.parameters?.length === commentParams.length &&
@@ -425,12 +429,12 @@ export class CommentPlugin extends ConverterComponent {
                 moveNestedParamTags(childComment, parameter);
                 const tag = childComment.getIdentifiedTag(
                     parameter.name,
-                    "@param"
+                    "@param",
                 );
 
                 if (tag) {
                     parameter.comment = new Comment(
-                        Comment.cloneDisplayParts(tag.content)
+                        Comment.cloneDisplayParts(tag.content),
                     );
                 }
             });
@@ -439,19 +443,19 @@ export class CommentPlugin extends ConverterComponent {
                 const tag =
                     childComment.getIdentifiedTag(
                         parameter.name,
-                        "@typeParam"
+                        "@typeParam",
                     ) ||
                     childComment.getIdentifiedTag(
                         parameter.name,
-                        "@template"
+                        "@template",
                     ) ||
                     childComment.getIdentifiedTag(
                         `<${parameter.name}>`,
-                        "@param"
+                        "@param",
                     );
                 if (tag) {
                     parameter.comment = new Comment(
-                        Comment.cloneDisplayParts(tag.content)
+                        Comment.cloneDisplayParts(tag.content),
                     );
                 }
             }
@@ -505,7 +509,7 @@ export class CommentPlugin extends ConverterComponent {
             if (
                 reflection.kindOf(
                     ReflectionKind.CallSignature |
-                        ReflectionKind.ConstructorSignature
+                        ReflectionKind.ConstructorSignature,
                 ) &&
                 reflection.parent?.comment
             ) {
@@ -579,7 +583,9 @@ export class CommentPlugin extends ConverterComponent {
 
         if (!target || !excludeCategories.length) return false;
 
-        const categories = CategoryPlugin.getCategories(target);
+        const categories = this.application
+            .getPlugin("typedoc:category")
+            .getCategories(target);
         if (categories.size === 0) {
             categories.add(this.defaultCategory);
         }
@@ -605,7 +611,7 @@ function moveNestedParamTags(comment: Comment, parameter: ParameterReflection) {
             const tags = comment.blockTags.filter(
                 (t) =>
                     t.tag === "@param" &&
-                    t.name?.startsWith(`${parameter.name}.`)
+                    t.name?.startsWith(`${parameter.name}.`),
             );
 
             for (const tag of tags) {
@@ -615,7 +621,7 @@ function moveNestedParamTags(comment: Comment, parameter: ParameterReflection) {
 
                 if (child && !child.comment) {
                     child.comment = new Comment(
-                        Comment.cloneDisplayParts(tag.content)
+                        Comment.cloneDisplayParts(tag.content),
                     );
                 }
             }
@@ -634,7 +640,7 @@ function moveNestedParamTags(comment: Comment, parameter: ParameterReflection) {
 
 function movePropertyTags(comment: Comment, container: Reflection) {
     const propTags = comment.blockTags.filter(
-        (tag) => tag.tag === "@prop" || tag.tag === "@property"
+        (tag) => tag.tag === "@prop" || tag.tag === "@property",
     );
     comment.removeTags("@prop");
     comment.removeTags("@property");
@@ -645,13 +651,13 @@ function movePropertyTags(comment: Comment, container: Reflection) {
         const child = container.getChildByName(prop.name);
         if (child) {
             child.comment = new Comment(
-                Comment.cloneDisplayParts(prop.content)
+                Comment.cloneDisplayParts(prop.content),
             );
 
             if (child instanceof DeclarationReflection && child.signatures) {
                 for (const sig of child.signatures) {
                     sig.comment = new Comment(
-                        Comment.cloneDisplayParts(prop.content)
+                        Comment.cloneDisplayParts(prop.content),
                     );
                 }
             }

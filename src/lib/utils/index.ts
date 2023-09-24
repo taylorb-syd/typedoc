@@ -6,7 +6,6 @@ export {
     removeIfPresent,
     unique,
 } from "./array";
-export { AbstractComponent, ChildableComponent, Component } from "./component";
 export * from "./enum";
 export { EventDispatcher } from "./events";
 export {
@@ -22,7 +21,7 @@ export {
 } from "./fs";
 export { normalizePath } from "./paths";
 export type { IfInternal, NeverIfInternal, Chars } from "./general";
-export { assertNever } from "./general";
+export { assertNever, Bound } from "./general";
 export { ConsoleLogger, Logger, LogLevel } from "./loggers";
 export { DefaultMap } from "./map";
 export {
@@ -59,7 +58,7 @@ export type {
     ManuallyValidatedOption,
     JsDocCompatibility,
 } from "./options";
-export { loadPlugins } from "./plugins";
+export { loadPlugins, Plugin } from "./plugins";
 export { getSortFunction } from "./sort";
 export type { SortStrategy } from "./sort";
 

@@ -67,7 +67,7 @@ export function measure<T>(cb: () => T): T {
 
 export class Measurement {
     start = Date.now();
-    private timer: Benchmark
+    private timer: Benchmark;
 
     constructor(name: string) {
         const matching = benchmarks.find((b) => b.name === name);

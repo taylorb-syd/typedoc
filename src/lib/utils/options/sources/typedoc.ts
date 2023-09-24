@@ -6,7 +6,7 @@ import {
     EmitStrategy,
     CommentStyle,
 } from "../declaration";
-import { BUNDLED_THEMES, Theme } from "shiki";
+import { BUNDLED_THEMES, Theme as ShikiTheme } from "shiki";
 import { SORT_STRATEGIES } from "../../sort";
 import { EntryPointStrategy } from "../../entry-point";
 import { ReflectionKind } from "../../../models/reflections/kind";
@@ -207,6 +207,25 @@ export function addTypeDocOptions(options: Pick<Options, "addDeclaration">) {
     ///////////////////////////
 
     options.addDeclaration({
+        name: "outputs",
+        type: ParameterType.Mixed,
+        help: "Specify the output type, cannot be set from CLI",
+        configFileOnly: true,
+        defaultValue: [],
+        validate(value) {
+            if (
+                !Validation.validate(
+                    [Array, { path: String, type: String }],
+                    value,
+                )
+            ) {
+                throw new Error(
+                    "outputs must be an array of objects containing path and type string properties.",
+                );
+            }
+        },
+    });
+    options.addDeclaration({
         name: "out",
         help: "Specify the location the documentation should be written to.",
         type: ParameterType.Path,
@@ -232,15 +251,9 @@ export function addTypeDocOptions(options: Pick<Options, "addDeclaration">) {
         map: EmitStrategy,
         defaultValue: "docs",
     });
-    options.addDeclaration({
-        name: "theme",
-        help: "Specify the theme name to render the documentation with",
-        type: ParameterType.String,
-        defaultValue: "default",
-    });
 
-    const defaultLightTheme: Theme = "light-plus";
-    const defaultDarkTheme: Theme = "dark-plus";
+    const defaultLightTheme: ShikiTheme = "light-plus";
+    const defaultDarkTheme: ShikiTheme = "dark-plus";
 
     options.addDeclaration({
         name: "lightHighlightTheme",

@@ -2,150 +2,74 @@
  * Holds all logic used render and output the final documentation.
  *
  * The {@link Renderer} class is the central controller within this namespace. When invoked it creates
- * an instance of {@link Theme} which defines the layout of the documentation and fires a
+ * an instance of {@link Output} which defines the layout of the documentation and fires a
  * series of {@link RendererEvent} events. Instances of {@link BasePlugin} can listen to these events and
  * alter the generated output.
  */
 import * as fs from "fs";
-import * as path from "path";
 
 import type { Application } from "../application";
-import type { Theme } from "./theme";
-import { RendererEvent, PageEvent, IndexEvent, MarkdownEvent } from "./events";
+import type { MinimalDocument, Output } from "./output";
+import { RendererEvent, PageEvent } from "./events";
 import type { ProjectReflection } from "../models/reflections/project";
-import type { RenderTemplate } from "./models/UrlMapping";
 import { writeFileSync } from "../utils/fs";
-import { DefaultTheme } from "./themes/default/DefaultTheme";
-import { RendererComponent } from "./components";
-import { Component, ChildableComponent } from "../utils/component";
-import { Option, EventHooks } from "../utils";
-import { loadHighlighter } from "../utils/highlighter";
-import type { Theme as ShikiTheme } from "shiki";
-import { Reflection } from "../models";
-import type { JsxElement } from "../utils/jsx.elements";
-import type { DefaultThemeRenderContext } from "./themes/default/DefaultThemeRenderContext";
-import { validateStateIsClean } from "./themes/default/partials/type";
-import { setRenderSettings } from "../utils/jsx";
+import { Option, EventDispatcher } from "../utils";
+import "./plugins";
+import type { OutputOptions } from "../utils/options/declaration";
+import { JsonOutput } from "./json-output";
+import { DefaultHtmlOutput } from "./themes/default/DefaultTheme";
+import { join } from "path";
+import { nicePath } from "../utils/paths";
 
 /**
- * Describes the hooks available to inject output in the default theme.
- * If the available hooks don't let you put something where you'd like, please open an issue!
+ * Events emitted by the {@link Renderer}.
+ * Event listeners should take an argument of the specified type.
  */
-export interface RendererHooks {
-    /**
-     * Applied immediately after the opening `<head>` tag.
-     */
-    "head.begin": [DefaultThemeRenderContext];
-
-    /**
-     * Applied immediately before the closing `</head>` tag.
-     */
-    "head.end": [DefaultThemeRenderContext];
-
-    /**
-     * Applied immediately after the opening `<body>` tag.
-     */
-    "body.begin": [DefaultThemeRenderContext];
-
-    /**
-     * Applied immediately before the closing `</body>` tag.
-     */
-    "body.end": [DefaultThemeRenderContext];
-
-    /**
-     * Applied immediately before the main template.
-     */
-    "content.begin": [DefaultThemeRenderContext];
-
-    /**
-     * Applied immediately after the main template.
-     */
-    "content.end": [DefaultThemeRenderContext];
-
-    /**
-     * Applied immediately before calling `context.sidebar`.
-     */
-    "sidebar.begin": [DefaultThemeRenderContext];
-
-    /**
-     * Applied immediately after calling `context.sidebar`.
-     */
-    "sidebar.end": [DefaultThemeRenderContext];
-
-    /**
-     * Applied immediately before calling `context.pageSidebar`.
-     */
-    "pageSidebar.begin": [DefaultThemeRenderContext];
-
-    /**
-     * Applied immediately after calling `context.pageSidebar`.
-     */
-    "pageSidebar.end": [DefaultThemeRenderContext];
-}
-
 interface RendererEvents {
-    parseMarkdown: [MarkdownEvent];
-    includeMarkdown: [MarkdownEvent];
-    beginPage: [PageEvent<Reflection>];
-    endPage: [PageEvent<Reflection>];
+    /**
+     * Emitted before a document has been rendered.
+     */
+    beginPage: [PageEvent<MinimalDocument>];
+    /**
+     * Emitted after a document has been rendered, but before it has been written to disk.
+     */
+    endPage: [PageEvent<MinimalDocument>];
+    /**
+     * Emitted before the renderer starts rendering a project.
+     */
     beginRender: [RendererEvent];
+    /**
+     * Emitted after the renderer has written all documents.
+     */
     endRender: [RendererEvent];
-    prepareIndex: [IndexEvent];
 }
 
 /**
- * The renderer processes a {@link ProjectReflection} using a {@link Theme} instance and writes
+ * The renderer processes a {@link ProjectReflection} using a {@link Output} instance and writes
  * the emitted html documents to a output directory. You can specify which theme should be used
  * using the `--theme <name>` command line argument.
  *
  * {@link Renderer} is a subclass of {@link EventDispatcher} and triggers a series of events while
  * a project is being processed. You can listen to these events to control the flow or manipulate
- * the output.
- *
- *  * {@link Renderer.EVENT_BEGIN}<br>
- *    Triggered before the renderer starts rendering a project. The listener receives
- *    an instance of {@link RendererEvent}. By calling {@link RendererEvent.preventDefault} the entire
- *    render process can be canceled.
- *
- *    * {@link Renderer.EVENT_BEGIN_PAGE}<br>
- *      Triggered before a document will be rendered. The listener receives an instance of
- *      {@link PageEvent}. By calling {@link PageEvent.preventDefault} the generation of the
- *      document can be canceled.
- *
- *    * {@link Renderer.EVENT_END_PAGE}<br>
- *      Triggered after a document has been rendered, just before it is written to disc. The
- *      listener receives an instance of {@link PageEvent}. When calling
- *      {@link PageEvent.preventDefault} the the document will not be saved to disc.
- *
- *  * {@link Renderer.EVENT_END}<br>
- *    Triggered after the renderer has written all documents. The listener receives
- *    an instance of {@link RendererEvent}.
- *
- * * {@link Renderer.EVENT_PREPARE_INDEX}<br>
- *    Triggered when the JavascriptIndexPlugin is preparing the search index. Listeners receive
- *    an instance of {@link IndexEvent}.
+ * the output. See {@link RendererEvents} for description of the available events.
  */
-@Component({ name: "renderer", internal: true, childClass: RendererComponent })
-export class Renderer extends ChildableComponent<
-    Application,
-    RendererComponent,
-    RendererEvents
-> {
-    private themes = new Map<string, new (renderer: Renderer) => Theme>([
-        ["default", DefaultTheme],
+export class Renderer extends EventDispatcher<RendererEvents> {
+    private outputs = new Map<
+        string,
+        new (app: Application) => Output<any, any>
+    >([
+        ["html", DefaultHtmlOutput],
+        ["json", JsonOutput],
     ]);
 
-    /** @event */
+    /** See {@link RendererEvents.beginPage} @event */
     static readonly EVENT_BEGIN_PAGE = PageEvent.BEGIN;
-    /** @event */
+    /** See {@link RendererEvents.endPage} @event */
     static readonly EVENT_END_PAGE = PageEvent.END;
-    /** @event */
+    /** See {@link RendererEvents.beginRender} @event */
     static readonly EVENT_BEGIN = RendererEvent.BEGIN;
-    /** @event */
+    /** See {@link RendererEvents.endRender} @event */
     static readonly EVENT_END = RendererEvent.END;
-
-    /** @event */
-    static readonly EVENT_PREPARE_INDEX = IndexEvent.PREPARE_INDEX;
 
     /**
      * A list of async jobs which must be completed *before* rendering output.
@@ -154,7 +78,7 @@ export class Renderer extends ChildableComponent<
      * This may be used by plugins to register work that must be done to prepare output files. For example: asynchronously
      * transform markdown to HTML.
      *
-     * Note: This array is cleared after calling the contained functions on each {@link Renderer.render} call.
+     * Note: This array is cleared after calling the contained functions on each {@link Renderer.writeOutputs} call.
      */
     preRenderAsyncJobs: Array<(output: RendererEvent) => Promise<void>> = [];
 
@@ -165,200 +89,167 @@ export class Renderer extends ChildableComponent<
      * This may be used by plugins to register work that must be done to finalize output files. For example: asynchronously
      * generating an image referenced in a render hook.
      *
-     * Note: This array is cleared after calling the contained functions on each {@link Renderer.render} call.
+     * Note: This array is cleared after calling the contained functions on each {@link Renderer.writeOutputs} call.
      */
     postRenderAsyncJobs: Array<(output: RendererEvent) => Promise<void>> = [];
 
     /**
-     * The theme that is used to render the documentation.
+     * The output that is currently being used to render the documentation.
+     * This will be set before {@link EVENT_BEGIN}.
      */
-    theme?: Theme;
+    output?: Output<MinimalDocument, {}>;
 
-    /**
-     * Hooks which will be called when rendering pages.
-     * Note:
-     * - Hooks added during output will be discarded at the end of rendering.
-     * - Hooks added during a page render will be discarded at the end of that page's render.
-     *
-     * See {@link RendererHooks} for a description of each available hook, and when it will be called.
-     */
-    hooks = new EventHooks<RendererHooks, JsxElement>();
-
-    markedPlugin: MarkedPlugin;
-
-    /** @internal */
-    @Option("theme")
-    accessor themeName!: string;
+    get logger() {
+        return this.application.logger;
+    }
 
     /** @internal */
     @Option("cleanOutputDir")
     accessor cleanOutputDir!: boolean;
 
-    /** @internal */
-    @Option("cname")
-    accessor cname!: string;
-
-    /** @internal */
-    @Option("githubPages")
-    accessor githubPages!: boolean;
-
-    /** @internal */
-    @Option("cacheBust")
-    accessor cacheBust!: boolean;
-
-    /** @internal */
-    @Option("lightHighlightTheme")
-    accessor lightTheme!: ShikiTheme;
-
-    /** @internal */
-    @Option("darkHighlightTheme")
-    accessor darkTheme!: ShikiTheme;
-
-    /** @internal */
-    @Option("pretty")
-    accessor pretty!: boolean;
-
-    renderStartTime = -1;
-
-    constructor(app: Application) {
-        super(app);
-
-        this.markedPlugin = new MarkedPlugin(this);
-        new AssetsPlugin(this);
-        new JavascriptIndexPlugin(this);
-        new NavigationPlugin(this);
+    constructor(readonly application: Application) {
+        super();
     }
 
     /**
-     * Define a new theme that can be used to render output.
-     * This API will likely be changing at some point, to allow more easily overriding parts of the theme without
-     * requiring additional boilerplate.
-     * @param name
-     * @param theme
+     * Define a new output that can be used to render a project to disc.
      */
-    defineTheme(name: string, theme: new (renderer: Renderer) => Theme) {
-        if (this.themes.has(name)) {
-            throw new Error(`The theme "${name}" has already been defined.`);
+    defineOutput(
+        name: string,
+        output: new (app: Application) => Output<MinimalDocument, {}>,
+    ) {
+        if (this.outputs.has(name)) {
+            throw new Error(`The output "${name}" has already been defined.`);
         }
-        this.themes.set(name, theme);
+        this.outputs.set(name, output);
     }
 
     /**
-     * Render the given project reflection to the specified output directory.
-     *
-     * @param project  The project that should be rendered.
-     * @param outputDirectory  The path of the directory the documentation should be rendered to.
+     * Render the given project reflection to all user configured outputs.
      */
-    async render(
+    async writeOutputs(project: ProjectReflection): Promise<void> {
+        const options = this.application.options;
+        const outputs: OutputOptions[] = [];
+
+        // If the user set a shortcut option, ignore the outputs config, they probably
+        // just wanted this one. It'd be nice to make this available to the markdown plugin
+        // too...
+        if (options.isSet("out") || options.isSet("json")) {
+            if (options.getValue("out")) {
+                outputs.push({
+                    type: "html",
+                    path: options.getValue("out"),
+                });
+            }
+            if (options.getValue("json")) {
+                outputs.push({
+                    type: "json",
+                    path: options.getValue("json"),
+                });
+            }
+
+            if (options.isSet("outputs")) {
+                this.logger.info(
+                    "Ignoring 'outputs' configuration as 'out' or 'json' was specified.",
+                );
+            }
+        } else if (options.isSet("outputs")) {
+            outputs.push(...options.getValue("outputs"));
+        }
+
+        // No outputs = render html to docs in current directory
+        if (!outputs.length) {
+            outputs.push({
+                type: "html",
+                path: process.cwd() + "/docs",
+            });
+        }
+
+        for (const output of outputs) {
+            await this.writeOutput(project, output);
+        }
+    }
+
+    /**
+     * Render the given project with the provided output options.
+     */
+    async writeOutput(
         project: ProjectReflection,
-        outputDirectory: string
+        output: OutputOptions,
     ): Promise<void> {
-        setRenderSettings({ pretty: this.pretty });
+        const start = Date.now();
+        const event = new RendererEvent(output.path, project);
 
-        const momento = this.hooks.saveMomento();
-        this.renderStartTime = Date.now();
+        this.trigger(RendererEvent.BEGIN, event);
+        await this.runPreRenderJobs(event);
 
-        if (
-            !this.prepareTheme() ||
-            !(await this.prepareOutputDirectory(outputDirectory))
-        ) {
+        const ctor = this.outputs.get(output.type);
+        if (!ctor) {
+            this.application.logger.error(
+                `Skipping output "${output.type}" as it has not been defined. Ensure you have loaded the providing plugin.`,
+            );
             return;
         }
 
-        const output = new RendererEvent(outputDirectory, project);
-        output.urls = this.theme!.getUrls(project);
+        this.output = new ctor(this.application);
+        await this.output.setup(this.application);
+        const router = (this.output.router = this.output.buildRouter(
+            output.path,
+        ));
+        const documents = router.getDocuments(project);
 
-        this.trigger(RendererEvent.BEGIN, output);
-        await this.runPreRenderJobs(output);
-
-        this.application.logger.verbose(
-            `There are ${output.urls.length} pages to write.`
-        );
-        output.urls.forEach((mapping) => {
-            this.renderDocument(...output.createPageEvent(mapping));
-            validateStateIsClean(mapping.url);
-        });
-
-        await Promise.all(this.postRenderAsyncJobs.map((job) => job(output)));
-        this.postRenderAsyncJobs = [];
-
-        this.trigger(RendererEvent.END, output);
-
-        this.theme = void 0;
-        this.hooks.restoreMomento(momento);
-    }
-
-    private async runPreRenderJobs(output: RendererEvent) {
-        const start = Date.now();
-
-        this.preRenderAsyncJobs.push(this.loadHighlighter.bind(this));
-        await Promise.all(this.preRenderAsyncJobs.map((job) => job(output)));
-        this.preRenderAsyncJobs = [];
-
-        this.application.logger.verbose(
-            `Pre render async jobs took ${Date.now() - start}ms`
-        );
-    }
-
-    private async loadHighlighter() {
-        await loadHighlighter(this.lightTheme, this.darkTheme);
-    }
-
-    /**
-     * Render a single page.
-     *
-     * @param page An event describing the current page.
-     * @return TRUE if the page has been saved to disc, otherwise FALSE.
-     */
-    private renderDocument(
-        template: RenderTemplate<PageEvent<Reflection>>,
-        page: PageEvent<Reflection>
-    ) {
-        const momento = this.hooks.saveMomento();
-        this.trigger(PageEvent.BEGIN, page);
-
-        if (page.model instanceof Reflection) {
-            page.contents = this.theme!.render(page, template);
-        } else {
-            throw new Error("Should be unreachable");
-        }
-
-        this.trigger(PageEvent.END, page);
-        this.hooks.restoreMomento(momento);
-
-        try {
-            writeFileSync(page.filename, page.contents);
-        } catch (error) {
-            this.application.logger.error(`Could not write ${page.filename}`);
-        }
-    }
-
-    /**
-     * Ensure that a theme has been setup.
-     *
-     * If a the user has set a theme we try to find and load it. If no theme has
-     * been specified we load the default theme.
-     *
-     * @returns TRUE if a theme has been setup, otherwise FALSE.
-     */
-    private prepareTheme(): boolean {
-        if (!this.theme) {
-            const ctor = this.themes.get(this.themeName);
-            if (!ctor) {
-                this.application.logger.error(
-                    `The theme '${
-                        this.themeName
-                    }' is not defined. The available themes are: ${[
-                        ...this.themes.keys(),
-                    ].join(", ")}`
-                );
-                return false;
-            } else {
-                this.theme = new ctor(this);
+        if (documents.length > 1) {
+            // We're writing more than one document, so the output path should be a directory.
+            const success = await this.prepareOutputDirectory(output.path);
+            if (!success) {
+                await this.output.teardown(this.application);
+                this.output = undefined;
+                return;
             }
         }
 
-        return true;
+        this.logger.verbose(`There are ${documents.length} documents to write`);
+
+        for (const doc of documents) {
+            router.setCurrentDocument(doc);
+
+            const pageEvent = new PageEvent(project, doc);
+            this.trigger(PageEvent.BEGIN, pageEvent);
+            pageEvent.contents = await this.output.render(doc);
+            this.trigger(PageEvent.END, pageEvent);
+
+            try {
+                writeFileSync(
+                    join(output.path, doc.filename),
+                    pageEvent.contents,
+                );
+            } catch {
+                this.logger.error(`Could not write ${doc.filename}`);
+            }
+        }
+
+        this.trigger(RendererEvent.END, event);
+        await this.output.teardown(this.application);
+        await this.runPostRenderJobs(event);
+
+        this.logger.verbose(
+            `Rendering ${output.type} took ${Date.now() - start}ms`,
+        );
+        this.logger.info(
+            `Wrote ${output.type} output to ${nicePath(output.path)}`,
+        );
+
+        this.output = undefined;
+    }
+
+    private async runPreRenderJobs(output: RendererEvent) {
+        await Promise.all(this.preRenderAsyncJobs.map((job) => job(output)));
+        this.preRenderAsyncJobs = [];
+    }
+
+    private async runPostRenderJobs(output: RendererEvent) {
+        await Promise.all(this.postRenderAsyncJobs.map((job) => job(output)));
+        this.postRenderAsyncJobs = [];
     }
 
     /**
@@ -376,9 +267,7 @@ export class Renderer extends ChildableComponent<
                     force: true,
                 });
             } catch (error) {
-                this.application.logger.warn(
-                    "Could not empty the output directory."
-                );
+                this.logger.warn("Could not empty the output directory.");
                 return false;
             }
         }
@@ -386,42 +275,12 @@ export class Renderer extends ChildableComponent<
         try {
             fs.mkdirSync(directory, { recursive: true });
         } catch (error) {
-            this.application.logger.error(
-                `Could not create output directory ${directory}.`
+            this.logger.error(
+                `Could not create output directory ${directory}.`,
             );
             return false;
-        }
-
-        if (this.githubPages) {
-            try {
-                const text =
-                    "TypeDoc added this file to prevent GitHub Pages from " +
-                    "using Jekyll. You can turn off this behavior by setting " +
-                    "the `githubPages` option to false.";
-
-                fs.writeFileSync(path.join(directory, ".nojekyll"), text);
-            } catch (error) {
-                this.application.logger.warn(
-                    "Could not create .nojekyll file."
-                );
-                return false;
-            }
-        }
-
-        if (this.cname) {
-            fs.writeFileSync(path.join(directory, "CNAME"), this.cname);
         }
 
         return true;
     }
 }
-
-// HACK: THIS HAS TO STAY DOWN HERE
-// if you try to move it up to the top of the file, then you'll run into stuff being used before it has been defined.
-import "./plugins";
-import {
-    AssetsPlugin,
-    JavascriptIndexPlugin,
-    MarkedPlugin,
-    NavigationPlugin,
-} from "./plugins";

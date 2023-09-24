@@ -72,6 +72,14 @@ export type TypeDocOptionValues = {
 };
 
 /**
+ * Options for an output type.
+ */
+export interface OutputOptions {
+    type: string;
+    path: string;
+}
+
+/**
  * Describes all TypeDoc options. Used internally to provide better types when fetching options.
  * External consumers should likely use {@link TypeDocOptions} instead.
  *
@@ -117,11 +125,11 @@ export interface TypeDocOptionMap {
     stripYamlFrontmatter: boolean;
 
     // Output
+    outputs: ManuallyValidatedOption<OutputOptions[]>;
     out: string;
     json: string;
     pretty: boolean;
     emit: typeof EmitStrategy;
-    theme: string;
     lightHighlightTheme: ShikiTheme;
     darkHighlightTheme: ShikiTheme;
     customCss: string;

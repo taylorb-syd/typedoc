@@ -5,64 +5,54 @@ import {
     Comment,
 } from "../../models";
 import { ReflectionCategory } from "../../models";
-import { Component, ConverterComponent } from "../components";
 import { Converter } from "../converter";
 import type { Context } from "../context";
-import { Option, getSortFunction } from "../../utils";
+import { Plugin, Option, getSortFunction, Bound } from "../../utils";
+import type { Application } from "../../application";
 
 /**
  * A handler that sorts and categorizes the found reflections in the resolving phase.
  *
- * The handler sets the ´category´ property of all reflections.
+ * The handler sets the ´category´ property of all reflections and removes the `@category`
+ * tag from the comment.
  */
-@Component({ name: "category" })
-export class CategoryPlugin extends ConverterComponent {
+@Plugin("typedoc:category")
+export class CategoryPlugin {
     sortFunction!: (reflections: DeclarationReflection[]) => void;
 
     @Option("defaultCategory")
-    accessor defaultCategory!: string;
+    private accessor defaultCategory!: string;
 
     @Option("categoryOrder")
-    accessor categoryOrder!: string[];
+    private accessor categoryOrder!: string[];
 
     @Option("categorizeByGroup")
-    accessor categorizeByGroup!: boolean;
+    private accessor categorizeByGroup!: boolean;
 
     @Option("searchCategoryBoosts")
-    accessor boosts!: Record<string, number>;
+    private accessor boosts!: Record<string, number>;
 
-    usedBoosts = new Set<string>();
-
-    // For use in static methods
-    static defaultCategory = "Other";
-    static WEIGHTS: string[] = [];
+    private usedBoosts = new Set<string>();
 
     /**
      * Create a new CategoryPlugin instance.
      */
-    override initialize() {
-        this.owner.on(Converter.EVENT_BEGIN, this.onBegin.bind(this), -200);
-        this.owner.on(Converter.EVENT_RESOLVE, this.onResolve.bind(this), -200);
-        this.owner.on(
+    constructor(readonly application: Application) {
+        application.converter.on(Converter.EVENT_BEGIN, this.onBegin, -200);
+        application.converter.on(Converter.EVENT_RESOLVE, this.onResolve, -200);
+        application.converter.on(
             Converter.EVENT_RESOLVE_END,
-            this.onEndResolve.bind(this),
-            -200
+            this.onEndResolve,
+            -200,
         );
     }
 
     /**
      * Triggered when the converter begins converting a project.
      */
+    @Bound
     private onBegin(_context: Context) {
         this.sortFunction = getSortFunction(this.application.options);
-
-        // Set up static properties
-        if (this.defaultCategory) {
-            CategoryPlugin.defaultCategory = this.defaultCategory;
-        }
-        if (this.categoryOrder) {
-            CategoryPlugin.WEIGHTS = this.categoryOrder;
-        }
     }
 
     /**
@@ -71,6 +61,7 @@ export class CategoryPlugin extends ConverterComponent {
      * @param context  The context object describing the current state the converter is in.
      * @param reflection  The reflection that is currently resolved.
      */
+    @Bound
     private onResolve(_context: Context, reflection: Reflection) {
         if (reflection instanceof ContainerReflection) {
             this.categorize(reflection);
@@ -82,6 +73,7 @@ export class CategoryPlugin extends ConverterComponent {
      *
      * @param context  The context object describing the current state the converter is in.
      */
+    @Bound
     private onEndResolve(context: Context) {
         const project = context.project;
         this.categorize(project);
@@ -96,8 +88,8 @@ export class CategoryPlugin extends ConverterComponent {
             context.logger.warn(
                 `Not all categories specified in searchCategoryBoosts were used in the documentation.` +
                     ` The unused categories were:\n\t${Array.from(
-                        unusedBoosts
-                    ).join("\n\t")}`
+                        unusedBoosts,
+                    ).join("\n\t")}`,
             );
         }
     }
@@ -119,10 +111,10 @@ export class CategoryPlugin extends ConverterComponent {
 
             group.categories = this.getReflectionCategories(group.children);
             if (group.categories && group.categories.length > 1) {
-                group.categories.sort(CategoryPlugin.sortCatCallback);
+                this.sortCategories(group.categories);
             } else if (
                 group.categories.length === 1 &&
-                group.categories[0].title === CategoryPlugin.defaultCategory
+                group.categories[0].title === this.defaultCategory
             ) {
                 // no categories if everything is uncategorized
                 group.categories = undefined;
@@ -136,10 +128,10 @@ export class CategoryPlugin extends ConverterComponent {
         }
         obj.categories = this.getReflectionCategories(obj.children);
         if (obj.categories && obj.categories.length > 1) {
-            obj.categories.sort(CategoryPlugin.sortCatCallback);
+            this.sortCategories(obj.categories);
         } else if (
             obj.categories.length === 1 &&
-            obj.categories[0].title === CategoryPlugin.defaultCategory
+            obj.categories[0].title === this.defaultCategory
         ) {
             // no categories if everything is uncategorized
             obj.categories = undefined;
@@ -155,14 +147,14 @@ export class CategoryPlugin extends ConverterComponent {
      * @returns An array containing all children of the given reflection categorized
      */
     private getReflectionCategories(
-        reflections: DeclarationReflection[]
+        reflections: DeclarationReflection[],
     ): ReflectionCategory[] {
         const categories = new Map<string, ReflectionCategory>();
 
         for (const child of reflections) {
             const childCategories = this.extractCategories(child);
             if (childCategories.size === 0) {
-                childCategories.add(CategoryPlugin.defaultCategory);
+                childCategories.add(this.defaultCategory);
             }
 
             for (const childCat of childCategories) {
@@ -195,7 +187,7 @@ export class CategoryPlugin extends ConverterComponent {
      * If you change this, also update getGroups in GroupPlugin accordingly.
      */
     private extractCategories(reflection: DeclarationReflection) {
-        const categories = CategoryPlugin.getCategories(reflection);
+        const categories = this.getCategories(reflection);
 
         reflection.comment?.removeTags("@category");
         for (const sig of reflection.getNonIndexSignatures()) {
@@ -209,8 +201,6 @@ export class CategoryPlugin extends ConverterComponent {
             }
         }
 
-        categories.delete("");
-
         for (const cat of categories) {
             if (cat in this.boosts) {
                 this.usedBoosts.add(cat);
@@ -222,45 +212,46 @@ export class CategoryPlugin extends ConverterComponent {
         return categories;
     }
 
-    /**
-     * Callback used to sort categories by name.
-     *
-     * @param a The left reflection to sort.
-     * @param b The right reflection to sort.
-     * @returns The sorting weight.
-     */
-    private static sortCatCallback(
-        a: ReflectionCategory,
-        b: ReflectionCategory
-    ): number {
-        let aWeight = CategoryPlugin.WEIGHTS.indexOf(a.title);
-        let bWeight = CategoryPlugin.WEIGHTS.indexOf(b.title);
-        if (aWeight === -1 || bWeight === -1) {
-            let asteriskIndex = CategoryPlugin.WEIGHTS.indexOf("*");
-            if (asteriskIndex === -1) {
-                asteriskIndex = CategoryPlugin.WEIGHTS.length;
+    private sortCategories(categories: ReflectionCategory[]): void {
+        const WEIGHTS = this.categoryOrder;
+
+        categories.sort((a, b) => {
+            let aWeight = WEIGHTS.indexOf(a.title);
+            let bWeight = WEIGHTS.indexOf(b.title);
+            if (aWeight === -1 || bWeight === -1) {
+                let asteriskIndex = WEIGHTS.indexOf("*");
+                if (asteriskIndex === -1) {
+                    asteriskIndex = WEIGHTS.length;
+                }
+                if (aWeight === -1) {
+                    aWeight = asteriskIndex;
+                }
+                if (bWeight === -1) {
+                    bWeight = asteriskIndex;
+                }
             }
-            if (aWeight === -1) {
-                aWeight = asteriskIndex;
+            if (aWeight === bWeight) {
+                return a.title > b.title ? 1 : -1;
             }
-            if (bWeight === -1) {
-                bWeight = asteriskIndex;
-            }
-        }
-        if (aWeight === bWeight) {
-            return a.title > b.title ? 1 : -1;
-        }
-        return aWeight - bWeight;
+            return aWeight - bWeight;
+        });
     }
 
-    static getCategories(reflection: DeclarationReflection) {
+    /**
+     * Discover the `@category` tags associated with the given reflection.
+     * If no `@category` tags are found, a set containing the default category
+     * will be returned.
+     *
+     * Does _not_ remove the category tags from comments.
+     */
+    getCategories(reflection: DeclarationReflection) {
         const categories = new Set<string>();
         function discoverCategories(comment: Comment | undefined) {
             if (!comment) return;
             for (const tag of comment.blockTags) {
                 if (tag.tag === "@category") {
                     categories.add(
-                        Comment.combineDisplayParts(tag.content).trim()
+                        Comment.combineDisplayParts(tag.content).trim(),
                     );
                 }
             }
@@ -279,6 +270,9 @@ export class CategoryPlugin extends ConverterComponent {
         }
 
         categories.delete("");
+        if (!categories.size) {
+            categories.add(this.defaultCategory);
+        }
 
         return categories;
     }

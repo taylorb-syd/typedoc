@@ -1,12 +1,6 @@
-import * as Path from "path";
-
 import type { ProjectReflection } from "../models/reflections/project";
-import type { RenderTemplate, UrlMapping } from "./models/UrlMapping";
-import type {
-    DeclarationReflection,
-    Reflection,
-    ReflectionKind,
-} from "../models";
+import type { HtmlOutputDocument } from "./html-output";
+import type { MinimalDocument } from "./output";
 
 /**
  * An event emitted by the {@link Renderer} class at the very beginning and
@@ -27,13 +21,6 @@ export class RendererEvent {
     readonly outputDirectory: string;
 
     /**
-     * A list of all pages that should be generated.
-     *
-     * This list can be altered during the {@link Renderer.EVENT_BEGIN} event.
-     */
-    urls?: UrlMapping<Reflection>[];
-
-    /**
      * Triggered before the renderer starts rendering a project.
      * @event
      */
@@ -49,23 +36,6 @@ export class RendererEvent {
         this.outputDirectory = outputDirectory;
         this.project = project;
     }
-
-    /**
-     * Create an {@link PageEvent} event based on this event and the given url mapping.
-     *
-     * @internal
-     * @param mapping  The mapping that defines the generated {@link PageEvent} state.
-     * @returns A newly created {@link PageEvent} instance.
-     */
-    public createPageEvent<Model>(
-        mapping: UrlMapping<Model>
-    ): [RenderTemplate<PageEvent<Model>>, PageEvent<Model>] {
-        const event = new PageEvent<Model>(mapping.model);
-        event.project = this.project;
-        event.url = mapping.url;
-        event.filename = Path.join(this.outputDirectory, mapping.url);
-        return [mapping.template, event];
-    }
 }
 
 /**
@@ -75,45 +45,24 @@ export class RendererEvent {
  * @see {@link Renderer.EVENT_BEGIN_PAGE}
  * @see {@link Renderer.EVENT_END_PAGE}
  */
-export class PageEvent<out Model = unknown> {
+export class PageEvent<out TDocument extends MinimalDocument> {
     /**
      * The project the renderer is currently processing.
      */
-    project!: ProjectReflection;
-
-    /**
-     * The filename the page will be written to.
-     */
-    filename!: string;
-
-    /**
-     * The url this page will be located at.
-     */
-    url!: string;
+    readonly project: ProjectReflection;
 
     /**
      * The model that should be rendered on this page.
      */
-    readonly model: Model;
+    readonly document: TDocument;
 
     /**
      * The final html content of this page.
      *
-     * Should be rendered by layout templates and can be modified by plugins.
+     * Should be rendered by layout templates and can be modified by plugins
+     * during the {@link END} event.
      */
     contents?: string;
-
-    /**
-     * Links to content within this page that should be rendered in the page navigation.
-     * This is built when rendering the document content.
-     */
-    pageHeadings: Array<{
-        link: string;
-        text: string;
-        level?: number;
-        kind?: ReflectionKind;
-        classes?: string;
-    }> = [];
 
     /**
      * Triggered before a document will be rendered.
@@ -127,8 +76,9 @@ export class PageEvent<out Model = unknown> {
      */
     static readonly END = "endPage";
 
-    constructor(model: Model) {
-        this.model = model;
+    constructor(project: ProjectReflection, model: TDocument) {
+        this.project = project;
+        this.document = model;
     }
 }
 
@@ -152,83 +102,27 @@ export class MarkdownEvent {
     /**
      * The page that this markdown is being parsed for.
      */
-    readonly page: PageEvent;
+    readonly page: HtmlOutputDocument;
 
     /**
-     * Triggered on the renderer when this plugin parses a markdown string.
+     * Triggered on the HtmlOutput instance when this plugin parses a markdown string.
      * @event
      */
     static readonly PARSE = "parseMarkdown";
 
     /**
-     * Triggered on the renderer when this plugin includes a markdown file through a markdown include tag.
+     * Triggered on the HtmlOutput instance when this plugin includes a markdown file through a markdown include tag.
      * @event
      */
     static readonly INCLUDE = "includeMarkdown";
 
-    constructor(page: PageEvent, originalText: string, parsedText: string) {
+    constructor(
+        page: HtmlOutputDocument,
+        originalText: string,
+        parsedText: string,
+    ) {
         this.page = page;
         this.originalText = originalText;
         this.parsedText = parsedText;
-    }
-}
-
-/**
- * An event emitted when the search index is being prepared.
- */
-export class IndexEvent {
-    /**
-     * Triggered on the renderer when the search index is being prepared.
-     * @event
-     */
-    static readonly PREPARE_INDEX = "prepareIndex";
-
-    /**
-     * May be filtered by plugins to reduce the results available.
-     * Additional items *should not* be added to this array.
-     *
-     * If you remove an index from this array, you must also remove the
-     * same index from {@link searchFields}. The {@link removeResult} helper
-     * will do this for you.
-     */
-    searchResults: DeclarationReflection[];
-
-    /**
-     * Additional search fields to be used when creating the search index.
-     * `name` and `comment` may be specified to overwrite TypeDoc's search fields.
-     *
-     * Do not use `id` as a custom search field.
-     */
-    searchFields: Record<string, string>[];
-
-    /**
-     * Weights for the fields defined in `searchFields`. The default will weight
-     * `name` as 10x more important than comment content.
-     *
-     * If a field added to {@link searchFields} is not added to this object, it
-     * will **not** be searchable.
-     *
-     * Do not replace this object, instead, set new properties on it for custom search
-     * fields added by your plugin.
-     */
-    readonly searchFieldWeights: Record<string, number> = {
-        name: 10,
-        comment: 1,
-    };
-
-    /**
-     * Remove a search result by index.
-     */
-    removeResult(index: number) {
-        this.searchResults.splice(index, 1);
-        this.searchFields.splice(index, 1);
-    }
-
-    constructor(searchResults: DeclarationReflection[]) {
-        this.searchResults = searchResults;
-        this.searchFields = Array.from(
-            { length: this.searchResults.length },
-            () => ({})
-        );
     }
 }

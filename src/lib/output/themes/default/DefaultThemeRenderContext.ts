@@ -1,12 +1,16 @@
-import type { PageEvent, RendererHooks } from "../..";
 import {
     Comment,
     CommentDisplayPart,
     DeclarationReflection,
     Reflection,
 } from "../../../models";
-import type { JSX, NeverIfInternal, Options } from "../../../utils";
-import type { DefaultTheme } from "./DefaultTheme";
+import type { JSX, Options } from "../../../utils";
+import type {
+    HtmlOutput,
+    HtmlOutputDocument,
+    HtmlOutputRouter,
+    HtmlRendererHooks,
+} from "../../html-output";
 import { defaultLayout } from "./layouts/default";
 import { index } from "./partials";
 import { analytics } from "./partials/analytics";
@@ -53,14 +57,15 @@ function bind<F, L extends any[], R>(fn: (f: F, ...a: L) => R, first: F) {
 export class DefaultThemeRenderContext {
     private _iconsCache: JSX.Element;
     private _refIcons: typeof icons;
-    options: Options;
+    protected output: HtmlOutput<never>;
 
     constructor(
-        private theme: DefaultTheme,
-        public page: PageEvent<Reflection>,
-        options: Options,
+        output: HtmlOutput<any>,
+        readonly page: HtmlOutputDocument,
+        protected router: HtmlOutputRouter,
+        readonly options: Options,
     ) {
-        this.options = options;
+        this.output = output;
 
         const { refs, cache } = buildRefIcons(icons);
         this._refIcons = refs;
@@ -80,38 +85,26 @@ export class DefaultThemeRenderContext {
         this._iconsCache = cache;
     }
 
-    hook = (name: keyof RendererHooks) =>
-        this.theme.owner.hooks.emit(name, this);
+    hook = (name: keyof HtmlRendererHooks) =>
+        this.output.hooks.emit(name, this);
 
     /** Avoid this in favor of urlTo if possible */
     relativeURL = (url: string, cacheBust = false) => {
-        const result = this.theme.markedPlugin.getRelativeUrl(url);
-        if (cacheBust && this.theme.owner.cacheBust) {
-            return result + `?cache=${this.theme.owner.renderStartTime}`;
-        }
-        return result;
+        return this.router.relativeUrl(url, cacheBust);
     };
 
-    urlTo = (reflection: Reflection) => {
-        return reflection.url ? this.relativeURL(reflection.url) : "";
+    urlTo = (reflection: Reflection) => this.router.urlTo(reflection) || "";
+
+    markdown = (md: readonly CommentDisplayPart[]) => {
+        return this.output.parseMarkdown(
+            Comment.displayPartsToMarkdown(md, this.urlTo),
+        );
     };
 
-    markdown = (
-        md: readonly CommentDisplayPart[] | NeverIfInternal<string | undefined>,
-    ) => {
-        if (md instanceof Array) {
-            return this.theme.markedPlugin.parseMarkdown(
-                Comment.displayPartsToMarkdown(md, this.urlTo),
-                this.page,
-            );
-        }
-        return md ? this.theme.markedPlugin.parseMarkdown(md, this.page) : "";
-    };
-
-    getNavigation = () => this.theme.getNavigation(this.page.project);
+    getNavigation = () => this.output.getNavigation(this.page.project);
 
     getReflectionClasses = (refl: DeclarationReflection) =>
-        this.theme.getReflectionClasses(refl);
+        this.output.getReflectionClasses(refl);
 
     reflectionTemplate = bind(reflectionTemplate, this);
     indexTemplate = bind(indexTemplate, this);

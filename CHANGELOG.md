@@ -1,10 +1,17 @@
 # Beta
 
+### TODO
+
+-   Fix not exported warnings when building docs
+-   Fix options reading to correctly handle `outputs.path`
+
 ### API Breaking Changes
 
 -   Heavily refactored the "Component" structure that TypeDoc is based on to provided typed events.
     This resulted in several component related methods being removed from Application, Converter, etc.
+    Most notably, `listenTo` no longer exists. Plugins should instead use `on`.
 -   `Converter.EVENT_CREATE_DECLARATION` will no longer sometimes be emitted for the root level `ProjectReflection`
+-   Removed `IndexEvent` which was created for plugin use, but ended up not actually being necessary.
 
 # Unreleased
 
@@ -700,7 +707,7 @@
 -   `{@link}` tags in comments will now be resolved as declaration references similar to TSDoc's declaration references.
     For most cases, this will just work. See [the documentation](https://github.com/TypeStrong/typedoc-site/blob/da9760bccf30ce96210f6e35b9dcc2a4ddeed234/guides/link-resolution.md) for details on how link resolution works.
 -   TypeDoc will now produce warnings for bracketed links (`[[ target ]]`). Use `{@link target}` instead. The `{@link}` syntax will be recognized by [TypeScript 4.3](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-3.html#editor-support-for-link-tags) and later and used to provide better intellisense. TypeDoc version 0.24.0 will remove support for `[[ target ]]` style links.
-    Support for `` [[`links`]] `` with brackets + code ticks have been dropped.
+    Support for ``[[`links`]]`` with brackets + code ticks have been dropped.
 -   `extends` in typedoc.json is now resolved using NodeJS module resolution, so a local path must begin with `./`.
 -   In the JSON output for `DeclarationReflection`s, `getSignature` is no longer a one-tuple.
 -   In the JSON output for `DeclarationReflection`s, `setSignature` is no longer a one-tuple.

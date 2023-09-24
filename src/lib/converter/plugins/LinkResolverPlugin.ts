@@ -1,70 +1,74 @@
-import { Component, ConverterComponent } from "../components";
 import type { Context, ExternalResolveResult } from "../../converter";
 import { ConverterEvents } from "../converter-events";
-import { Option, ValidationOptions } from "../../utils";
+import { Bound, Option, Plugin, ValidationOptions } from "../../utils";
 import { DeclarationReflection, ProjectReflection } from "../../models";
 import { discoverAllReferenceTypes } from "../../utils/reflections";
 import { ApplicationEvents } from "../../application-events";
+import type { Application } from "../../application";
 
 /**
  * A plugin that resolves `{@link Foo}` tags.
  */
-@Component({ name: "link-resolver" })
-export class LinkResolverPlugin extends ConverterComponent {
+@Plugin("typedoc:linkResolver")
+export class LinkResolverPlugin {
     @Option("validation")
     accessor validation!: ValidationOptions;
 
-    override initialize() {
-        super.initialize();
-        this.owner.on(
+    constructor(readonly application: Application) {
+        application.converter.on(
             ConverterEvents.RESOLVE_END,
-            this.onResolve.bind(this),
-            -300
+            this.onResolve,
+            -300,
         );
-        this.application.on(
-            ApplicationEvents.REVIVE,
-            this.resolveLinks.bind(this),
-            -300
-        );
+        this.application.on(ApplicationEvents.REVIVE, this.resolveLinks, -300);
     }
 
+    @Bound
     onResolve(context: Context) {
         this.resolveLinks(context.project);
     }
 
+    @Bound
     resolveLinks(project: ProjectReflection) {
         for (const id in project.reflections) {
             const reflection = project.reflections[id];
             if (reflection.comment) {
-                this.owner.resolveLinks(reflection.comment, reflection);
+                this.application.converter.resolveLinks(
+                    reflection.comment,
+                    reflection,
+                );
             }
 
             if (
                 reflection instanceof DeclarationReflection &&
                 reflection.readme
             ) {
-                reflection.readme = this.owner.resolveLinks(
+                reflection.readme = this.application.converter.resolveLinks(
                     reflection.readme,
-                    reflection
+                    reflection,
                 );
             }
         }
 
         if (project.readme) {
-            project.readme = this.owner.resolveLinks(project.readme, project);
+            project.readme = this.application.converter.resolveLinks(
+                project.readme,
+                project,
+            );
         }
 
         for (const { type, owner } of discoverAllReferenceTypes(
             project,
-            false
+            false,
         )) {
             if (!type.reflection) {
-                const resolveResult = this.owner.resolveExternalLink(
-                    type.toDeclarationReference(),
-                    owner,
-                    undefined,
-                    type.symbolId
-                );
+                const resolveResult =
+                    this.application.converter.resolveExternalLink(
+                        type.toDeclarationReference(),
+                        owner,
+                        undefined,
+                        type.symbolId,
+                    );
                 switch (typeof resolveResult) {
                     case "string":
                         type.externalUrl = resolveResult as string;

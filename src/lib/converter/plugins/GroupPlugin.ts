@@ -5,64 +5,49 @@ import {
     DeclarationReflection,
 } from "../../models/reflections/index";
 import { ReflectionGroup } from "../../models/ReflectionGroup";
-import { Component, ConverterComponent } from "../components";
 import { Converter } from "../converter";
 import type { Context } from "../context";
 import { getSortFunction } from "../../utils/sort";
-import { Option, removeIf } from "../../utils";
+import { Bound, Option, Plugin, removeIf } from "../../utils";
 import { Comment } from "../../models";
+import type { Application } from "../../application";
 
 /**
  * A handler that sorts and groups the found reflections in the resolving phase.
  *
  * The handler sets the `groups` property of all container reflections.
  */
-@Component({ name: "group" })
-export class GroupPlugin extends ConverterComponent {
-    sortFunction!: (reflections: DeclarationReflection[]) => void;
+@Plugin("typedoc:group")
+export class GroupPlugin {
+    private sortFunction!: (reflections: DeclarationReflection[]) => void;
 
     @Option("searchGroupBoosts")
-    accessor boosts!: Record<string, number>;
+    private accessor boosts!: Record<string, number>;
 
     @Option("groupOrder")
-    accessor groupOrder!: string[];
+    private accessor groupOrder!: string[];
 
-    usedBoosts = new Set<string>();
+    private usedBoosts = new Set<string>();
 
-    static WEIGHTS: string[] = [];
-
-    /**
-     * Create a new GroupPlugin instance.
-     */
-    override initialize() {
-        this.owner.on(Converter.EVENT_RESOLVE_BEGIN, () => {
+    constructor(readonly application: Application) {
+        application.converter.on(Converter.EVENT_RESOLVE_BEGIN, () => {
             this.sortFunction = getSortFunction(this.application.options);
-            GroupPlugin.WEIGHTS = this.groupOrder;
         });
-        this.owner.on(Converter.EVENT_RESOLVE, this.onResolve.bind(this));
-        this.owner.on(
+        application.converter.on(Converter.EVENT_RESOLVE, this.onResolve);
+        application.converter.on(
             Converter.EVENT_RESOLVE_END,
-            this.onEndResolve.bind(this)
+            this.onEndResolve,
         );
     }
 
-    /**
-     * Triggered when the converter resolves a reflection.
-     *
-     * @param context  The context object describing the current state the converter is in.
-     * @param reflection  The reflection that is currently resolved.
-     */
+    @Bound
     private onResolve(_context: Context, reflection: Reflection) {
         if (reflection instanceof ContainerReflection) {
             this.group(reflection);
         }
     }
 
-    /**
-     * Triggered when the converter has finished resolving a project.
-     *
-     * @param context  The context object describing the current state the converter is in.
-     */
+    @Bound
     private onEndResolve(context: Context) {
         this.group(context.project);
 
@@ -79,8 +64,8 @@ export class GroupPlugin extends ConverterComponent {
             context.logger.warn(
                 `Not all groups specified in searchGroupBoosts were used in the documentation.` +
                     ` The unused groups were:\n\t${Array.from(
-                        unusedBoosts
-                    ).join("\n\t")}`
+                        unusedBoosts,
+                    ).join("\n\t")}`,
             );
         }
     }
@@ -97,12 +82,10 @@ export class GroupPlugin extends ConverterComponent {
     }
 
     /**
-     * Extracts the groups for a given reflection.
-     *
      * @privateRemarks
      * If you change this, also update extractCategories in CategoryPlugin accordingly.
      */
-    getGroups(reflection: DeclarationReflection) {
+    private getGroups(reflection: DeclarationReflection) {
         const groups = new Set<string>();
         function extractGroupTags(comment: Comment | undefined) {
             if (!comment) return;
@@ -144,16 +127,8 @@ export class GroupPlugin extends ConverterComponent {
         return groups;
     }
 
-    /**
-     * Create a grouped representation of the given list of reflections.
-     *
-     * Reflections are grouped by kind and sorted by weight and name.
-     *
-     * @param reflections  The reflections that should be grouped.
-     * @returns An array containing all children of the given reflection grouped by their kind.
-     */
-    getReflectionGroups(
-        reflections: DeclarationReflection[]
+    private getReflectionGroups(
+        reflections: DeclarationReflection[],
     ): ReflectionGroup[] {
         const groups = new Map<string, ReflectionGroup>();
 
@@ -169,30 +144,29 @@ export class GroupPlugin extends ConverterComponent {
             }
         });
 
-        return Array.from(groups.values()).sort(GroupPlugin.sortGroupCallback);
+        return this.sortGroups(Array.from(groups.values()));
     }
 
-    /**
-     * Callback used to sort groups by name.
-     */
-    static sortGroupCallback(a: ReflectionGroup, b: ReflectionGroup): number {
-        let aWeight = GroupPlugin.WEIGHTS.indexOf(a.title);
-        let bWeight = GroupPlugin.WEIGHTS.indexOf(b.title);
-        if (aWeight === -1 || bWeight === -1) {
-            let asteriskIndex = GroupPlugin.WEIGHTS.indexOf("*");
-            if (asteriskIndex === -1) {
-                asteriskIndex = GroupPlugin.WEIGHTS.length;
+    private sortGroups(groups: ReflectionGroup[]) {
+        const WEIGHTS = this.groupOrder;
+        let asteriskIndex = WEIGHTS.indexOf("*");
+        if (asteriskIndex === -1) asteriskIndex = WEIGHTS.length;
+
+        return groups.sort((a, b) => {
+            let aWeight = WEIGHTS.indexOf(a.title);
+            let bWeight = WEIGHTS.indexOf(b.title);
+            if (aWeight === -1 || bWeight === -1) {
+                if (aWeight === -1) {
+                    aWeight = asteriskIndex;
+                }
+                if (bWeight === -1) {
+                    bWeight = asteriskIndex;
+                }
             }
-            if (aWeight === -1) {
-                aWeight = asteriskIndex;
+            if (aWeight === bWeight) {
+                return a.title > b.title ? 1 : -1;
             }
-            if (bWeight === -1) {
-                bWeight = asteriskIndex;
-            }
-        }
-        if (aWeight === bWeight) {
-            return a.title > b.title ? 1 : -1;
-        }
-        return aWeight - bWeight;
+            return aWeight - bWeight;
+        });
     }
 }

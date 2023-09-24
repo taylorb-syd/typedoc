@@ -1,10 +1,10 @@
 import { classNames, hasTypeParameters } from "../../lib";
 import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
-import type { PageEvent } from "../../../events";
-import { ContainerReflection, DeclarationReflection, ReflectionKind, ReflectionType } from "../../../../models";
 import { JSX, Raw } from "../../../../utils";
+import type { HtmlOutputDocument } from "../../../html-output";
+import { DeclarationReflection, ReflectionKind, ReflectionType } from "../../../../models";
 
-export function reflectionTemplate(context: DefaultThemeRenderContext, props: PageEvent<ContainerReflection>) {
+export function reflectionTemplate(context: DefaultThemeRenderContext, props: HtmlOutputDocument) {
     if (
         [ReflectionKind.TypeAlias, ReflectionKind.Variable].includes(props.model.kind) &&
         props.model instanceof DeclarationReflection

@@ -28,7 +28,7 @@ function exec(command) {
 
 async function getPackages(search) {
     const query = `https://www.npmjs.com/search?q=${encodeURIComponent(
-        search
+        search,
     )}`;
 
     const results = [];
@@ -37,7 +37,7 @@ async function getPackages(search) {
 
     do {
         const data = JSON.parse(
-            await exec(`curl -s "${query}&page=${page++}" -H "x-spiferack: 1"`)
+            await exec(`curl -s "${query}&page=${page++}" -H "x-spiferack: 1"`),
         );
 
         total = data.total;
@@ -99,8 +99,8 @@ async function inflate(file) {
     await exec(
         `tar -C "${file.replace(".tgz", "")}" -xf "${file.replace(
             ".tgz",
-            ".tar"
-        )}"`
+            ".tar",
+        )}"`,
     );
     await fs.promises.rm(file.replace(".tgz", ".tar"));
 }
@@ -110,14 +110,14 @@ async function main(args) {
     const outDir = path.resolve(args[0] || "../typedoc_plugins");
     const plugins = await getPlugins();
     console.log(
-        `Found ${plugins.length} plugins updated in the past ${CUTOFF_DAYS} days.`
+        `Found ${plugins.length} plugins updated in the past ${CUTOFF_DAYS} days.`,
     );
     const tarballs = await Promise.all(plugins.map(getTarballUrl));
     console.log(`Downloading tarballs...`);
     await fs.promises.rm(outDir, { recursive: true, force: true });
     await fs.promises.mkdir(outDir, { recursive: true });
     const tarballFiles = await Promise.all(
-        tarballs.map((tar) => downloadTarball(tar, outDir))
+        tarballs.map((tar) => downloadTarball(tar, outDir)),
     );
     console.log(`Inflating...`);
     await Promise.all(tarballFiles.map(inflate));

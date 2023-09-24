@@ -25,19 +25,10 @@ export {
 
 export {
     Renderer,
-    DefaultTheme,
     DefaultThemeRenderContext,
-    UrlMapping,
-    Theme,
     PageEvent,
     RendererEvent,
     MarkdownEvent,
-    IndexEvent,
-} from "./lib/output";
-export type {
-    RenderTemplate,
-    RendererHooks,
-    NavigationElement,
 } from "./lib/output";
 
 export {

@@ -1,10 +1,9 @@
-import type { Reflection } from "../../../../models";
 import { JSX } from "../../../../utils";
-import type { PageEvent } from "../../../events";
+import type { HtmlOutputDocument } from "../../../html-output";
 import { getDisplayName } from "../../lib";
 import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
 
-export const toolbar = (context: DefaultThemeRenderContext, props: PageEvent<Reflection>) => (
+export const toolbar = (context: DefaultThemeRenderContext, props: HtmlOutputDocument) => (
     <header class="tsd-page-toolbar">
         <div class="tsd-toolbar-contents container">
             <div class="table-cell" id="tsd-search" data-base={context.relativeURL("./")}>

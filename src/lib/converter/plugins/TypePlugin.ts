@@ -6,43 +6,43 @@ import {
     Reflection,
 } from "../../models/reflections/index";
 import { Type, ReferenceType } from "../../models/types";
-import { Component, ConverterComponent } from "../components";
 import { Converter } from "../converter";
 import type { Context } from "../context";
 import { ApplicationEvents } from "../../application-events";
+import type { Application } from "../../application";
+import { Bound, Plugin } from "../../utils";
 
 /**
  * Responsible for adding `implementedBy` / `implementedFrom`
  */
-@Component({ name: "type" })
-export class TypePlugin extends ConverterComponent {
+@Plugin("typedoc:type")
+export class TypePlugin {
     reflections = new Set<DeclarationReflection>();
 
     /**
      * Create a new TypeHandler instance.
      */
-    override initialize() {
-        this.owner.on(Converter.EVENT_RESOLVE, this.onResolve.bind(this));
-        this.owner.on(
-            Converter.EVENT_RESOLVE_END,
-            this.onResolveEnd.bind(this)
-        );
-        this.owner.on(Converter.EVENT_END, () => this.reflections.clear());
-        this.application.on(ApplicationEvents.REVIVE, this.onRevive.bind(this));
+    constructor(app: Application) {
+        app.converter.on(Converter.EVENT_RESOLVE, this.onResolve);
+        app.converter.on(Converter.EVENT_RESOLVE_END, this.onResolveEnd);
+        app.converter.on(Converter.EVENT_END, () => this.reflections.clear());
+        app.on(ApplicationEvents.REVIVE, this.onRevive);
     }
 
+    @Bound
     private onRevive(project: ProjectReflection) {
         for (const id in project.reflections) {
             this.resolve(
                 project,
                 project.reflections[id],
-                /* create links */ false
+                /* create links */ false,
             );
         }
         this.finishResolve(project);
         this.reflections.clear();
     }
 
+    @Bound
     private onResolve(context: Context, reflection: Reflection) {
         this.resolve(context.project, reflection);
     }
@@ -50,7 +50,7 @@ export class TypePlugin extends ConverterComponent {
     private resolve(
         project: ProjectReflection,
         reflection: Reflection,
-        createLinks = true
+        createLinks = true,
     ) {
         if (!(reflection instanceof DeclarationReflection)) return;
 
@@ -65,8 +65,8 @@ export class TypePlugin extends ConverterComponent {
                         ReferenceType.createResolvedReference(
                             reflection.name,
                             reflection,
-                            project
-                        )
+                            project,
+                        ),
                     );
                 }
             });
@@ -80,8 +80,8 @@ export class TypePlugin extends ConverterComponent {
                         ReferenceType.createResolvedReference(
                             reflection.name,
                             reflection,
-                            project
-                        )
+                            project,
+                        ),
                     );
                 }
             });
@@ -89,7 +89,7 @@ export class TypePlugin extends ConverterComponent {
 
         function walk(
             types: Type[] | undefined,
-            callback: { (declaration: DeclarationReflection): void }
+            callback: { (declaration: DeclarationReflection): void },
         ) {
             if (!types) {
                 return;
@@ -113,6 +113,7 @@ export class TypePlugin extends ConverterComponent {
         this.reflections.add(reflection);
     }
 
+    @Bound
     private onResolveEnd(context: Context) {
         this.finishResolve(context.project);
     }
@@ -148,7 +149,7 @@ export class TypePlugin extends ConverterComponent {
                 ReferenceType.createResolvedReference(
                     reflection.name,
                     reflection,
-                    project
+                    project,
                 ),
             ]);
             hierarchy.isTarget = true;

@@ -36,7 +36,7 @@ export function buildRefIcons<T extends Record<string, () => JSX.Element>>(icons
     }
 
     return {
-        refs: refs as T,
+        refs: Object.freeze(refs) as T,
         cache: <svg style={"display: none"}>{children}</svg>,
     };
 }

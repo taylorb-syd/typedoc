@@ -10,37 +10,34 @@ import {
 } from "../../models/reflections/index";
 import { ReferenceType, ReflectionType, Type } from "../../models/types";
 import { filterMap, zip } from "../../utils/array";
-import { Component, ConverterComponent } from "../components";
 import type { Context } from "../context";
 import { Converter } from "../converter";
-import { getHumanName } from "../../utils";
+import { Plugin, getHumanName } from "../../utils";
+import type { Application } from "../../application";
 
 /**
  * A plugin that detects interface implementations of functions and
  * properties on classes and links them.
  */
-@Component({ name: "implements" })
-export class ImplementsPlugin extends ConverterComponent {
+@Plugin("typedoc:implements")
+export class ImplementsPlugin {
     private resolved = new WeakSet<Reflection>();
     private postponed = new WeakMap<Reflection, Set<DeclarationReflection>>();
 
-    /**
-     * Create a new ImplementsPlugin instance.
-     */
-    override initialize() {
-        this.owner.on(
+    constructor(readonly application: Application) {
+        application.converter.on(
             Converter.EVENT_RESOLVE_END,
-            this.onResolveEnd.bind(this)
+            this.onResolveEnd.bind(this),
         );
-        this.owner.on(
+        application.converter.on(
             Converter.EVENT_CREATE_DECLARATION,
             this.onDeclaration.bind(this),
-            -1000
+            -1000,
         );
-        this.owner.on(
+        application.converter.on(
             Converter.EVENT_CREATE_SIGNATURE,
             this.onSignature.bind(this),
-            1000
+            1000,
         );
         this.application.on(ApplicationEvents.REVIVE, this.resolve.bind(this));
     }
@@ -51,7 +48,7 @@ export class ImplementsPlugin extends ConverterComponent {
     private analyzeImplements(
         project: ProjectReflection,
         classReflection: DeclarationReflection,
-        interfaceReflection: DeclarationReflection
+        interfaceReflection: DeclarationReflection,
     ) {
         handleInheritedComments(classReflection, interfaceReflection);
         if (!interfaceReflection.children) {
@@ -61,7 +58,7 @@ export class ImplementsPlugin extends ConverterComponent {
         interfaceReflection.children.forEach((interfaceMember) => {
             const classMember = findMatchingMember(
                 interfaceMember,
-                classReflection
+                classReflection,
             );
 
             if (!classMember) {
@@ -74,7 +71,7 @@ export class ImplementsPlugin extends ConverterComponent {
                 ReferenceType.createResolvedReference(
                     interfaceMemberName,
                     interfaceMember,
-                    project
+                    project,
                 );
 
             const intSigs =
@@ -93,7 +90,7 @@ export class ImplementsPlugin extends ConverterComponent {
                 for (const [clsSig, intSig] of zip(clsSigs, intSigs)) {
                     if (clsSig.implementationOf) {
                         const target = intSig.parent.kindOf(
-                            ReflectionKind.FunctionOrMethod
+                            ReflectionKind.FunctionOrMethod,
                         )
                             ? intSig
                             : intSig.parent.parent!;
@@ -101,7 +98,7 @@ export class ImplementsPlugin extends ConverterComponent {
                             ReferenceType.createResolvedReference(
                                 clsSig.implementationOf.name,
                                 target,
-                                project
+                                project,
                             );
                     }
                 }
@@ -113,7 +110,7 @@ export class ImplementsPlugin extends ConverterComponent {
 
     private analyzeInheritance(
         project: ProjectReflection,
-        reflection: DeclarationReflection
+        reflection: DeclarationReflection,
     ) {
         const extendedTypes = filterMap(
             reflection.extendedTypes ?? [],
@@ -124,7 +121,7 @@ export class ImplementsPlugin extends ConverterComponent {
                           reflection: DeclarationReflection;
                       })
                     : void 0;
-            }
+            },
         );
 
         for (const parent of extendedTypes) {
@@ -140,19 +137,19 @@ export class ImplementsPlugin extends ConverterComponent {
 
                     for (const [childSig, parentSig] of zip(
                         child.signatures ?? [],
-                        parentMember.signatures ?? []
+                        parentMember.signatures ?? [],
                     )) {
                         childSig[key] = ReferenceType.createResolvedReference(
                             `${parent.name}.${parentMember.name}`,
                             parentSig,
-                            project
+                            project,
                         );
                     }
 
                     child[key] = ReferenceType.createResolvedReference(
                         `${parent.name}.${parentMember.name}`,
                         parentMember,
-                        project
+                        project,
                     );
 
                     handleInheritedComments(child, parentMember);
@@ -176,7 +173,7 @@ export class ImplementsPlugin extends ConverterComponent {
 
     private tryResolve(
         project: ProjectReflection,
-        reflection: DeclarationReflection
+        reflection: DeclarationReflection,
     ) {
         const requirements = filterMap(
             [
@@ -185,7 +182,7 @@ export class ImplementsPlugin extends ConverterComponent {
             ],
             (type) => {
                 return type instanceof ReferenceType ? type.reflection : void 0;
-            }
+            },
         );
 
         if (requirements.every((req) => this.resolved.has(req))) {
@@ -207,7 +204,7 @@ export class ImplementsPlugin extends ConverterComponent {
 
     private doResolve(
         project: ProjectReflection,
-        reflection: DeclarationReflection
+        reflection: DeclarationReflection,
     ) {
         if (
             reflection.kindOf(ReflectionKind.Class) &&
@@ -225,7 +222,7 @@ export class ImplementsPlugin extends ConverterComponent {
                     this.analyzeImplements(
                         project,
                         reflection,
-                        type.reflection as DeclarationReflection
+                        type.reflection as DeclarationReflection,
                     );
                 }
             });
@@ -241,7 +238,7 @@ export class ImplementsPlugin extends ConverterComponent {
 
     private getExtensionInfo(
         context: Context,
-        reflection: Reflection | undefined
+        reflection: Reflection | undefined,
     ) {
         if (!reflection || !reflection.kindOf(ReflectionKind.Inheritable)) {
             return;
@@ -253,7 +250,7 @@ export class ImplementsPlugin extends ConverterComponent {
         }
 
         const symbol = context.project.getSymbolFromReflection(
-            reflection.parent
+            reflection.parent,
         );
         if (!symbol) {
             return;
@@ -263,7 +260,7 @@ export class ImplementsPlugin extends ConverterComponent {
             .getDeclarations()
             ?.find(
                 (n): n is ts.ClassDeclaration | ts.InterfaceDeclaration =>
-                    ts.isClassDeclaration(n) || ts.isInterfaceDeclaration(n)
+                    ts.isClassDeclaration(n) || ts.isInterfaceDeclaration(n),
             );
         if (!declaration) {
             return;
@@ -301,7 +298,7 @@ export class ImplementsPlugin extends ConverterComponent {
         const childType = reflection.flags.isStatic
             ? context.checker.getTypeOfSymbolAtLocation(
                   info.symbol,
-                  info.declaration
+                  info.declaration,
               )
             : context.checker.getDeclaredTypeOfSymbol(info.symbol);
 
@@ -312,9 +309,10 @@ export class ImplementsPlugin extends ConverterComponent {
             context.logger.warn(
                 `Failed to retrieve${
                     reflection.flags.isStatic ? " static" : ""
-                } member "${reflection.escapedName ?? reflection.name}" of "${
-                    reflection.parent?.name
-                }" for inheritance analysis. Please report a bug.`
+                } member "${
+                    reflection.escapedName ?? reflection.name
+                }" of "${reflection.parent
+                    ?.name}" for inheritance analysis. Please report a bug.`,
             );
             return;
         }
@@ -331,7 +329,7 @@ export class ImplementsPlugin extends ConverterComponent {
 
             for (const expr of clause.types) {
                 const parentType = context.checker.getTypeAtLocation(
-                    reflection.flags.isStatic ? expr.expression : expr
+                    reflection.flags.isStatic ? expr.expression : expr,
                 );
 
                 const parentProperty = findProperty(reflection, parentType);
@@ -348,7 +346,7 @@ export class ImplementsPlugin extends ConverterComponent {
                         clause,
                         expr,
                         parentProperty,
-                        isInherit
+                        isInherit,
                     );
 
                     // Can't always break because we need to also set `implementationOf` if we
@@ -366,10 +364,10 @@ function constructorInheritance(
     context: Context,
     reflection: DeclarationReflection,
     childDecl: ts.ClassDeclaration | ts.InterfaceDeclaration,
-    constructorDecl: ts.ConstructorDeclaration | undefined
+    constructorDecl: ts.ConstructorDeclaration | undefined,
 ) {
     const extendsClause = childDecl.heritageClauses?.find(
-        (cl) => cl.token === ts.SyntaxKind.ExtendsKeyword
+        (cl) => cl.token === ts.SyntaxKind.ExtendsKeyword,
     );
 
     if (!extendsClause) return;
@@ -379,7 +377,7 @@ function constructorInheritance(
 
     reflection[key] ??= ReferenceType.createBrokenReference(
         name,
-        context.project
+        context.project,
     );
 
     for (const sig of reflection.signatures ?? []) {
@@ -401,7 +399,7 @@ function createLink(
     clause: ts.HeritageClause,
     expr: ts.ExpressionWithTypeArguments,
     symbol: ts.Symbol,
-    isOverwrite: boolean
+    isOverwrite: boolean,
 ) {
     const project = context.project;
     const name = `${expr.expression.getText()}.${getHumanName(symbol.name)}`;
@@ -417,14 +415,14 @@ function createLink(
     // Intentionally create broken links here. These will be replaced with real links during
     // resolution if we can do so.
     function link(
-        target: DeclarationReflection | SignatureReflection | undefined
+        target: DeclarationReflection | SignatureReflection | undefined,
     ) {
         if (!target) return;
 
         if (clause.token === ts.SyntaxKind.ImplementsKeyword) {
             target.implementationOf ??= ReferenceType.createBrokenReference(
                 name,
-                project
+                project,
             );
             return;
         }
@@ -432,12 +430,12 @@ function createLink(
         if (isOverwrite) {
             target.inheritedFrom ??= ReferenceType.createBrokenReference(
                 name,
-                project
+                project,
             );
         } else {
             target.overwrites ??= ReferenceType.createBrokenReference(
                 name,
-                project
+                project,
             );
         }
     }
@@ -449,7 +447,7 @@ function createLink(
  */
 function handleInheritedComments(
     child: DeclarationReflection,
-    parent: DeclarationReflection
+    parent: DeclarationReflection,
 ) {
     copyComment(child, parent);
 
@@ -494,7 +492,7 @@ function handleInheritedComments(
     ) {
         for (const [cs, ps] of zip(
             child.signatures,
-            parent.type.declaration.signatures
+            parent.type.declaration.signatures,
         )) {
             copyComment(cs, ps);
         }
@@ -526,7 +524,7 @@ function copyComment(target: Reflection, source: Reflection) {
     ) {
         for (const [tt, ts] of zip(
             target.typeParameters || [],
-            source.typeParameters || []
+            source.typeParameters || [],
         )) {
             copyComment(tt, ts);
         }
@@ -537,13 +535,13 @@ function copyComment(target: Reflection, source: Reflection) {
     ) {
         for (const [tt, ts] of zip(
             target.typeParameters || [],
-            source.typeParameters || []
+            source.typeParameters || [],
         )) {
             copyComment(tt, ts);
         }
         for (const [pt, ps] of zip(
             target.parameters || [],
-            source.parameters || []
+            source.parameters || [],
         )) {
             copyComment(pt, ps);
         }
@@ -552,11 +550,11 @@ function copyComment(target: Reflection, source: Reflection) {
 
 function findMatchingMember(
     toMatch: Reflection,
-    container: ContainerReflection
+    container: ContainerReflection,
 ) {
     return container.children?.find(
         (child) =>
             child.name == toMatch.name &&
-            child.flags.isStatic === toMatch.flags.isStatic
+            child.flags.isStatic === toMatch.flags.isStatic,
     );
 }

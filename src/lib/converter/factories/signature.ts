@@ -28,7 +28,7 @@ export function createSignature(
         | ReflectionKind.SetSignature,
     signature: ts.Signature,
     symbol: ts.Symbol | undefined,
-    declaration?: ts.SignatureDeclaration | ts.JSDocSignature
+    declaration?: ts.SignatureDeclaration | ts.JSDocSignature,
 ) {
     assert(context.scope instanceof DeclarationReflection);
 
@@ -41,13 +41,13 @@ export function createSignature(
             ? `new ${context.scope.parent!.name}`
             : context.scope.name,
         kind,
-        context.scope
+        context.scope,
     );
     const sigRefCtx = context.withScope(sigRef);
     if (symbol && declaration) {
         context.project.registerSymbolId(
             sigRef,
-            new ReflectionSymbolId(symbol, declaration)
+            new ReflectionSymbolId(symbol, declaration),
         );
     }
 
@@ -76,7 +76,7 @@ export function createSignature(
     sigRef.typeParameters = convertTypeParameters(
         sigRefCtx,
         sigRef,
-        signature.typeParameters
+        signature.typeParameters,
     );
 
     const parameterSymbols: ReadonlyArray<ts.Symbol & { type?: ts.Type }> =
@@ -88,7 +88,7 @@ export function createSignature(
         sigRefCtx,
         sigRef,
         parameterSymbols,
-        declaration?.parameters
+        declaration?.parameters,
     );
 
     const predicate = context.checker.getTypePredicateOfSignature(signature);
@@ -101,7 +101,7 @@ export function createSignature(
             sigRefCtx,
             (declaration?.kind === ts.SyntaxKind.FunctionDeclaration &&
                 declaration.type) ||
-                signature.getReturnType()
+                signature.getReturnType(),
         );
     }
 
@@ -126,7 +126,7 @@ export function createSignature(
         context,
         sigRef,
         declaration,
-        signature
+        signature,
     );
 }
 
@@ -137,7 +137,7 @@ function convertParameters(
     parameterNodes:
         | readonly ts.ParameterDeclaration[]
         | readonly ts.JSDocParameterTag[]
-        | undefined
+        | undefined,
 ) {
     return parameters.map((param, i) => {
         const declaration = param.valueDeclaration as
@@ -146,12 +146,12 @@ function convertParameters(
         assert(
             !declaration ||
                 ts.isParameter(declaration) ||
-                ts.isJSDocParameterTag(declaration)
+                ts.isJSDocParameterTag(declaration),
         );
         const paramRefl = new ParameterReflection(
             /__\d+/.test(param.name) ? "__namedParameters" : param.name,
             ReflectionKind.Parameter,
-            sigRef
+            sigRef,
         );
         if (declaration && ts.isJSDocParameterTag(declaration)) {
             paramRefl.comment = context.getJsDocComment(declaration);
@@ -162,14 +162,14 @@ function convertParameters(
         context.converter.trigger(
             ConverterEvents.CREATE_PARAMETER,
             context,
-            paramRefl
+            paramRefl,
         );
 
         let type: ts.Type | ts.TypeNode | undefined;
         if (declaration) {
             type = context.checker.getTypeOfSymbolAtLocation(
                 param,
-                declaration
+                declaration,
             );
         } else {
             type = param.type;
@@ -177,7 +177,7 @@ function convertParameters(
 
         paramRefl.type = context.converter.convertType(
             context.withScope(paramRefl),
-            type
+            type,
         );
 
         let isOptional = false;
@@ -215,7 +215,7 @@ function convertParameters(
 export function convertParameterNodes(
     context: Context,
     sigRef: SignatureReflection,
-    parameters: readonly (ts.JSDocParameterTag | ts.ParameterDeclaration)[]
+    parameters: readonly (ts.JSDocParameterTag | ts.ParameterDeclaration)[],
 ) {
     return parameters.map((param) => {
         const paramRefl = new ParameterReflection(
@@ -223,24 +223,24 @@ export function convertParameterNodes(
                 ? "__namedParameters"
                 : param.name.getText(),
             ReflectionKind.Parameter,
-            sigRef
+            sigRef,
         );
         if (ts.isJSDocParameterTag(param)) {
             paramRefl.comment = context.getJsDocComment(param);
         }
         context.registerReflection(
             paramRefl,
-            context.getSymbolAtLocation(param)
+            context.getSymbolAtLocation(param),
         );
         context.converter.trigger(
             ConverterEvents.CREATE_PARAMETER,
             context,
-            paramRefl
+            paramRefl,
         );
 
         paramRefl.type = context.converter.convertType(
             context.withScope(paramRefl),
-            ts.isParameter(param) ? param.type : param.typeExpression?.type
+            ts.isParameter(param) ? param.type : param.typeExpression?.type,
         );
 
         const isOptional = ts.isParameter(param)
@@ -257,7 +257,7 @@ export function convertParameterNodes(
             ts.isParameter(param)
                 ? !!param.dotDotDotToken
                 : !!param.typeExpression &&
-                      ts.isJSDocVariadicType(param.typeExpression.type)
+                      ts.isJSDocVariadicType(param.typeExpression.type),
         );
         return paramRefl;
     });
@@ -266,7 +266,7 @@ export function convertParameterNodes(
 function convertTypeParameters(
     context: Context,
     parent: Reflection,
-    parameters: readonly ts.TypeParameter[] | undefined
+    parameters: readonly ts.TypeParameter[] | undefined,
 ) {
     return parameters?.map((param) => {
         const constraintT = param.getConstraint();
@@ -282,7 +282,7 @@ function convertTypeParameters(
         const paramRefl = new TypeParameterReflection(
             param.symbol.name,
             parent,
-            variance
+            variance,
         );
         const paramCtx = context.withScope(paramRefl);
 
@@ -296,7 +296,7 @@ function convertTypeParameters(
         // No way to determine this from the type parameter itself, need to go back to the declaration
         if (
             declaration?.modifiers?.some(
-                (m) => m.kind === ts.SyntaxKind.ConstKeyword
+                (m) => m.kind === ts.SyntaxKind.ConstKeyword,
             )
         ) {
             paramRefl.flags.setFlag(ReflectionFlag.Const, true);
@@ -306,7 +306,7 @@ function convertTypeParameters(
         context.converter.trigger(
             ConverterEvents.CREATE_TYPE_PARAMETER,
             context,
-            paramRefl
+            paramRefl,
         );
 
         return paramRefl;
@@ -315,21 +315,21 @@ function convertTypeParameters(
 
 export function convertTypeParameterNodes(
     context: Context,
-    parameters: readonly ts.TypeParameterDeclaration[] | undefined
+    parameters: readonly ts.TypeParameterDeclaration[] | undefined,
 ) {
     return parameters?.map((param) =>
-        createTypeParamReflection(param, context)
+        createTypeParamReflection(param, context),
     );
 }
 
 export function createTypeParamReflection(
     param: ts.TypeParameterDeclaration,
-    context: Context
+    context: Context,
 ) {
     const paramRefl = new TypeParameterReflection(
         param.name.text,
         context.scope,
-        getVariance(param.modifiers)
+        getVariance(param.modifiers),
     );
     const paramScope = context.withScope(paramRefl);
     paramRefl.type = param.constraint
@@ -352,19 +352,19 @@ export function createTypeParamReflection(
         ConverterEvents.CREATE_TYPE_PARAMETER,
         context,
         paramRefl,
-        param
+        param,
     );
     return paramRefl;
 }
 
 function getVariance(
-    modifiers: ts.ModifiersArray | undefined
+    modifiers: ts.ModifiersArray | undefined,
 ): VarianceModifier | undefined {
     const hasIn = modifiers?.some(
-        (mod) => mod.kind === ts.SyntaxKind.InKeyword
+        (mod) => mod.kind === ts.SyntaxKind.InKeyword,
     );
     const hasOut = modifiers?.some(
-        (mod) => mod.kind === ts.SyntaxKind.OutKeyword
+        (mod) => mod.kind === ts.SyntaxKind.OutKeyword,
     );
 
     if (hasIn && hasOut) {
@@ -382,7 +382,7 @@ function getVariance(
 
 function convertPredicate(
     predicate: ts.TypePredicate,
-    context: Context
+    context: Context,
 ): PredicateType {
     let name: string;
     switch (predicate.kind) {
@@ -413,6 +413,6 @@ function convertPredicate(
         asserts,
         predicate.type
             ? context.converter.convertType(context, predicate.type)
-            : void 0
+            : void 0,
     );
 }

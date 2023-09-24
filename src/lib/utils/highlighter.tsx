@@ -134,6 +134,10 @@ class DoubleHighlighter {
 
 let highlighter: DoubleHighlighter | undefined;
 
+export function highlighterLoaded() {
+    return !!highlighter;
+}
+
 export async function loadHighlighter(lightTheme: Theme, darkTheme: Theme) {
     if (highlighter) return;
     const hl = await getHighlighter({ themes: [lightTheme, darkTheme] });
@@ -162,6 +166,5 @@ export function highlight(code: string, lang: string): string {
 }
 
 export function getStyles(): string {
-    assert(highlighter, "Tried to highlight with an uninitialized highlighter");
-    return highlighter.getStyles();
+    return highlighter?.getStyles() || "";
 }

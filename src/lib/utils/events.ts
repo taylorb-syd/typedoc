@@ -26,7 +26,7 @@ export class EventDispatcher<T extends Record<keyof T, unknown[]>> {
     on<K extends keyof T>(
         event: K,
         listener: (...args: T[K]) => void,
-        priority = 0
+        priority = 0,
     ): void {
         const list = (this._listeners.get(event) || []).slice();
         insertPrioritySorted(list, { listener, priority });

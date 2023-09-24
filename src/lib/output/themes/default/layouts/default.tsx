@@ -1,14 +1,12 @@
-import type { RenderTemplate } from "../../..";
-import type { Reflection } from "../../../../models";
 import { JSX, Raw } from "../../../../utils";
-import type { PageEvent } from "../../../events";
+import type { HtmlOutputDocument } from "../../../html-output";
 import { getDisplayName } from "../../lib";
 import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
 
 export const defaultLayout = (
     context: DefaultThemeRenderContext,
-    template: RenderTemplate<PageEvent<Reflection>>,
-    props: PageEvent<Reflection>,
+    template: (props: HtmlOutputDocument) => JSX.Element,
+    props: HtmlOutputDocument,
 ) => (
     <html class="default" lang={context.options.getValue("htmlLang")}>
         <head>
@@ -24,10 +22,6 @@ export const defaultLayout = (
             <meta name="viewport" content="width=device-width, initial-scale=1" />
 
             <link rel="stylesheet" href={context.relativeURL("assets/style.css", true)} />
-            <link rel="stylesheet" href={context.relativeURL("assets/highlight.css", true)} />
-            {context.options.getValue("customCss") && (
-                <link rel="stylesheet" href={context.relativeURL("assets/custom.css", true)} />
-            )}
             <script defer src={context.relativeURL("assets/main.js", true)}></script>
             <script async src={context.relativeURL("assets/search.js", true)} id="tsd-search-script"></script>
             <script async src={context.relativeURL("assets/navigation.js", true)} id="tsd-nav-script"></script>

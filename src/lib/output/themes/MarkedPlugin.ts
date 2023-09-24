@@ -2,19 +2,26 @@ import * as fs from "fs";
 import * as Path from "path";
 import * as Marked from "marked";
 
-import { Component, ContextAwareRendererComponent } from "../components";
 import { RendererEvent, MarkdownEvent, PageEvent } from "../events";
-import { Option, readFile, copySync, isFile } from "../../utils";
-import { highlight, isSupportedLanguage } from "../../utils/highlighter";
+import { Option, readFile, copySync, isFile, Plugin } from "../../utils";
+import {
+    highlight,
+    highlighterLoaded,
+    isSupportedLanguage,
+    loadHighlighter,
+} from "../../utils/highlighter";
 import type { Theme } from "shiki";
 import { escapeHtml, getTextContent } from "../../utils/html";
+import type { Application } from "../../application";
+import { HtmlOutput, HtmlOutputDocument } from "../html-output";
+import type { MinimalDocument } from "..";
 
 /**
  * Implements markdown and relativeURL helpers for templates.
  * @internal
  */
-@Component({ name: "marked" })
-export class MarkedPlugin extends ContextAwareRendererComponent {
+@Plugin("typedoc:marked")
+export class MarkedPlugin {
     @Option("includes")
     accessor includeSource!: string;
 
@@ -47,40 +54,41 @@ export class MarkedPlugin extends ContextAwareRendererComponent {
      */
     private mediaPattern = /media:\/\/([^ ")\]}]+)/g;
 
-    private sources?: { fileName: string; line: number }[];
-    private outputFileName?: string;
+    private document?: HtmlOutputDocument;
 
-    /**
-     * Create a new MarkedPlugin instance.
-     */
-    override initialize() {
-        super.initialize();
-        this.owner.on(MarkdownEvent.PARSE, this.onParseMarkdown.bind(this));
+    constructor(readonly application: Application) {
+        application.renderer.on(PageEvent.BEGIN, this.onBeginPage.bind(this));
     }
 
     /**
-     * Highlight the syntax of the given text using HighlightJS.
+     * Highlight the syntax of the given text using Shiki.
      *
      * @param text  The text that should be highlighted.
      * @param lang  The language that should be used to highlight the string.
      * @return A html string with syntax highlighting.
      */
-    public getHighlighted(text: string, lang?: string): string {
+    private getHighlighted(text: string, lang?: string): string {
+        if (!highlighterLoaded()) {
+            return text;
+        }
+
         lang = lang || "typescript";
         lang = lang.toLowerCase();
         if (!isSupportedLanguage(lang)) {
-            // Extra newline because of the progress bar
-            this.application.logger.warn(`
-Unsupported highlight language "${lang}" will not be highlighted. Run typedoc --help for a list of supported languages.
-target code block :
-\t${text.split("\n").join("\n\t")}
-source files :${this.sources?.map((source) => `\n\t${source.fileName}`).join()}
-output file :
-\t${this.outputFileName}`);
+            this.application.logger.warn(
+                `Unsupported highlight language "${lang}" will not be highlighted. Run typedoc --help for a list of supported languages.`,
+            );
             return text;
         }
 
         return highlight(text, lang);
+    }
+
+    /**
+     * Ensures the syntax highlighter is loaded.
+     */
+    public async loadHighlighter() {
+        await loadHighlighter(this.lightTheme, this.darkTheme);
     }
 
     /**
@@ -89,18 +97,29 @@ output file :
      * @param text  The markdown string that should be parsed.
      * @returns The resulting html string.
      */
-    public parseMarkdown(text: string, page: PageEvent<any>) {
+    public parseMarkdown(text: string) {
+        const output = this.application.renderer.output;
+        if (!(output instanceof HtmlOutput)) {
+            throw new Error(
+                "Markdown parsing is only available when the output type is html",
+            );
+        }
+
         if (this.includes) {
             text = text.replace(this.includePattern, (_match, path) => {
                 path = Path.join(this.includes!, path.trim());
                 if (isFile(path)) {
                     const contents = readFile(path);
-                    const event = new MarkdownEvent(page, contents, contents);
-                    this.owner.trigger(MarkdownEvent.INCLUDE, event);
+                    const event = new MarkdownEvent(
+                        this.document!,
+                        contents,
+                        contents,
+                    );
+                    output.trigger(MarkdownEvent.INCLUDE, event);
                     return event.parsedText;
                 } else {
                     this.application.logger.warn(
-                        "Could not find file to include: " + path
+                        "Could not find file to include: " + path,
                     );
                     return "";
                 }
@@ -114,20 +133,21 @@ output file :
                     const fileName = Path.join(this.mediaDirectory!, path);
 
                     if (isFile(fileName)) {
-                        return this.getRelativeUrl("media") + "/" + path;
+                        return output.router.relativeUrl("media") + "/" + path;
                     } else {
                         this.application.logger.warn(
-                            "Could not find media file: " + fileName
+                            "Could not find media file: " + fileName,
                         );
                         return match;
                     }
-                }
+                },
             );
         }
 
-        const event = new MarkdownEvent(page, text, text);
+        const event = new MarkdownEvent(this.document!, text, text);
 
-        this.owner.trigger(MarkdownEvent.PARSE, event);
+        output.trigger(MarkdownEvent.PARSE, event);
+        event.parsedText = Marked.marked(event.parsedText);
         return event.parsedText;
     }
 
@@ -136,9 +156,7 @@ output file :
      *
      * @param event  An event object describing the current render operation.
      */
-    protected override onBeginRenderer(event: RendererEvent) {
-        super.onBeginRenderer(event);
-
+    protected onBeginRenderer(event: RendererEvent) {
         Marked.marked.setOptions(this.createMarkedOptions());
 
         delete this.includes;
@@ -151,7 +169,7 @@ output file :
             } else {
                 this.application.logger.warn(
                     "Could not find provided includes directory: " +
-                        this.includeSource
+                        this.includeSource,
                 );
             }
         }
@@ -167,9 +185,15 @@ output file :
                 this.mediaDirectory = undefined;
                 this.application.logger.warn(
                     "Could not find provided media directory: " +
-                        this.mediaSource
+                        this.mediaSource,
                 );
             }
+        }
+    }
+
+    private onBeginPage(page: PageEvent<MinimalDocument>) {
+        if (page.document instanceof HtmlOutputDocument) {
+            this.document = page.document;
         }
     }
 
@@ -180,7 +204,7 @@ output file :
      */
     private createMarkedOptions(): Marked.marked.MarkedOptions {
         const markedOptions = (this.application.options.getValue(
-            "markedOptions"
+            "markedOptions",
         ) ?? {}) as Marked.marked.MarkedOptions;
 
         // Set some default values if they are not specified via the TypeDoc option
@@ -193,7 +217,7 @@ output file :
             markedOptions.renderer.heading = (text, level, _, slugger) => {
                 const slug = slugger.slug(text);
                 // Prefix the slug with an extra `md:` to prevent conflicts with TypeDoc's anchors.
-                this.page!.pageHeadings.push({
+                this.document!.pageHeadings.push({
                     link: `#md:${slug}`,
                     text: getTextContent(text),
                     level,
@@ -207,15 +231,6 @@ output file :
 
         return markedOptions;
     }
-
-    /**
-     * Triggered when {@link MarkedPlugin} parses a markdown string.
-     *
-     * @param event
-     */
-    onParseMarkdown(event: MarkdownEvent) {
-        event.parsedText = Marked.marked(event.parsedText);
-    }
 }
 
 // Basically a copy/paste of Marked's code, with the addition of the button
@@ -223,10 +238,10 @@ output file :
 function renderCode(
     this: Marked.marked.Renderer,
     code: string,
-    infostring: string | undefined,
-    escaped: boolean
+    info: string | undefined,
+    escaped: boolean,
 ) {
-    const lang = (infostring || "").match(/\S*/)![0];
+    const lang = (info || "").match(/\S*/)![0];
     if (this.options.highlight) {
         const out = this.options.highlight(code, lang);
         if (out != null && out !== code) {

@@ -1,13 +1,12 @@
-import { Reflection, ReflectionKind } from "../../../../models";
+import { ReflectionKind } from "../../../../models";
 import { JSX } from "../../../../utils";
-import type { PageEvent } from "../../../events";
+import type { HtmlOutputDocument, NavigationElement } from "../../../html-output";
 import { camelToTitleCase, classNames, getDisplayName, wbr } from "../../lib";
-import type { NavigationElement } from "../DefaultTheme";
 import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
 
 const MAX_EMBEDDED_NAV_SIZE = 20;
 
-export function sidebar(context: DefaultThemeRenderContext, props: PageEvent<Reflection>) {
+export function sidebar(context: DefaultThemeRenderContext, props: HtmlOutputDocument) {
     return (
         <>
             {context.sidebarLinks()}
@@ -99,7 +98,7 @@ export function settings(context: DefaultThemeRenderContext) {
     );
 }
 
-export const navigation = function navigation(context: DefaultThemeRenderContext, props: PageEvent<Reflection>) {
+export const navigation = function navigation(context: DefaultThemeRenderContext, props: HtmlOutputDocument) {
     const nav = context.getNavigation();
 
     let elements = 0;
@@ -165,7 +164,7 @@ export const navigation = function navigation(context: DefaultThemeRenderContext
     );
 };
 
-export function pageSidebar(context: DefaultThemeRenderContext, props: PageEvent<Reflection>) {
+export function pageSidebar(context: DefaultThemeRenderContext, props: HtmlOutputDocument) {
     return (
         <>
             {context.settings()}
@@ -174,7 +173,7 @@ export function pageSidebar(context: DefaultThemeRenderContext, props: PageEvent
     );
 }
 
-export function pageNavigation(context: DefaultThemeRenderContext, props: PageEvent<Reflection>) {
+export function pageNavigation(context: DefaultThemeRenderContext, props: HtmlOutputDocument) {
     const levels: JSX.Element[][] = [[]];
 
     function finalizeLevel() {

@@ -1,40 +1,24 @@
-import { Component, RendererComponent } from "../components";
 import { RendererEvent } from "../events";
-import { copySync, writeFileSync } from "../../utils/fs";
-import { DefaultTheme } from "../themes/default/DefaultTheme";
+import { copySync, readFile } from "../../utils/fs";
 import { getStyles } from "../../utils/highlighter";
-import { Option } from "../../utils";
-import { existsSync } from "fs";
+import { Bound, Option, Plugin } from "../../utils";
+import { closeSync, existsSync, openSync, writeSync } from "fs";
 import { join } from "path";
+import type { Application } from "../../application";
+import { HtmlOutput } from "../html-output";
 
 /**
  * A plugin that copies the subdirectory ´assets´ from the current themes
  * source folder to the output directory.
  */
-@Component({ name: "assets" })
-export class AssetsPlugin extends RendererComponent {
+@Plugin("typedoc:assets")
+export class AssetsPlugin {
     /** @internal */
     @Option("customCss")
     accessor customCss!: string;
 
-    /**
-     * Create a new AssetsPlugin instance.
-     */
-    override initialize() {
-        this.owner.on(RendererEvent.END, this.onRenderEnd.bind(this));
-        this.owner.on(RendererEvent.BEGIN, (event: RendererEvent) => {
-            const dest = join(event.outputDirectory, "assets");
-
-            if (this.customCss) {
-                if (existsSync(this.customCss)) {
-                    copySync(this.customCss, join(dest, "custom.css"));
-                } else {
-                    this.application.logger.error(
-                        `Custom CSS file at ${this.customCss} does not exist.`
-                    );
-                }
-            }
-        });
+    constructor(readonly application: Application) {
+        application.renderer.on(RendererEvent.END, this.onRenderEnd);
     }
 
     /**
@@ -42,13 +26,33 @@ export class AssetsPlugin extends RendererComponent {
      *
      * @param event  An event object describing the current render operation.
      */
+    @Bound
     private onRenderEnd(event: RendererEvent) {
-        if (this.owner.theme instanceof DefaultTheme) {
-            const src = join(__dirname, "..", "..", "..", "..", "static");
-            const dest = join(event.outputDirectory, "assets");
-            copySync(src, dest);
-
-            writeFileSync(join(dest, "highlight.css"), getStyles());
+        if (this.application.renderer.output instanceof HtmlOutput) {
+            this.copyAssets(event.outputDirectory);
         }
+    }
+
+    public copyAssets(outputDirectory: string): void {
+        const src = join(__dirname, "..", "..", "..", "..", "static");
+        const dest = join(outputDirectory, "assets");
+        copySync(src, dest);
+
+        const fp = openSync(join(dest, "style.css"), "a");
+        writeSync(fp, "/* Syntax Highlighting */\n\n");
+        writeSync(fp, getStyles());
+
+        if (this.customCss) {
+            if (existsSync(this.customCss)) {
+                writeSync(fp, "/* Custom CSS */\n\n");
+                writeSync(fp, readFile(this.customCss));
+            } else {
+                this.application.logger.error(
+                    `Custom CSS file at ${this.customCss} does not exist.`,
+                );
+            }
+        }
+
+        closeSync(fp);
     }
 }

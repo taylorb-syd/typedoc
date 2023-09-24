@@ -4,10 +4,15 @@ import {
     DeclarationReflection,
     SignatureReflection,
 } from "../../models/reflections/index";
-import { Component, ConverterComponent } from "../components";
 import { Converter } from "../converter";
 import type { Context } from "../context";
-import { Option, normalizePath, getCommonDirectory } from "../../utils";
+import {
+    Option,
+    Plugin,
+    normalizePath,
+    getCommonDirectory,
+    Bound,
+} from "../../utils";
 import { isNamedNode } from "../utils/nodes";
 import { dirname, relative } from "path";
 import { SourceReference } from "../../models";
@@ -18,12 +23,13 @@ import {
     Repository,
 } from "../utils/repository";
 import { BasePath } from "../utils/base-path";
+import type { Application } from "../../application";
 
 /**
  * A handler that attaches source file information to reflections.
  */
-@Component({ name: "source" })
-export class SourcePlugin extends ConverterComponent {
+@Plugin("typedoc:sources")
+export class SourcePlugin {
     @Option("disableSources")
     accessor disableSources!: boolean;
 
@@ -60,22 +66,23 @@ export class SourcePlugin extends ConverterComponent {
     /**
      * Create a new SourceHandler instance.
      */
-    override initialize() {
-        this.owner.on(Converter.EVENT_END, this.onEnd.bind(this));
-        this.owner.on(
+    constructor(readonly application: Application) {
+        application.converter.on(Converter.EVENT_END, this.onEnd);
+        application.converter.on(
             Converter.EVENT_CREATE_DECLARATION,
-            this.onDeclaration.bind(this)
+            this.onDeclaration,
         );
-        this.owner.on(
+        application.converter.on(
             Converter.EVENT_CREATE_SIGNATURE,
-            this.onSignature.bind(this)
+            this.onSignature,
         );
-        this.owner.on(
+        application.converter.on(
             Converter.EVENT_RESOLVE_BEGIN,
-            this.onBeginResolve.bind(this)
+            this.onBeginResolve,
         );
     }
 
+    @Bound
     private onEnd() {
         // Should probably clear repositories/ignoredPaths here, but these aren't likely to change between runs...
         this.fileNames.clear();
@@ -89,9 +96,10 @@ export class SourcePlugin extends ConverterComponent {
      * @param _context  The context object describing the current state the converter is in.
      * @param reflection  The reflection that is currently processed.
      */
+    @Bound
     private onDeclaration(
         _context: Context,
-        reflection: DeclarationReflection
+        reflection: DeclarationReflection,
     ) {
         if (this.disableSources) return;
 
@@ -107,7 +115,7 @@ export class SourcePlugin extends ConverterComponent {
             } else {
                 position = ts.getLineAndCharacterOfPosition(
                     sourceFile,
-                    getLocationNode(node).getStart()
+                    getLocationNode(node).getStart(),
                 );
             }
 
@@ -116,19 +124,20 @@ export class SourcePlugin extends ConverterComponent {
                 new SourceReference(
                     fileName,
                     position.line + 1,
-                    position.character
-                )
+                    position.character,
+                ),
             );
         }
     }
 
+    @Bound
     private onSignature(
         _context: Context,
         reflection: SignatureReflection,
         sig?:
             | ts.SignatureDeclaration
             | ts.IndexSignatureDeclaration
-            | ts.JSDocSignature
+            | ts.JSDocSignature,
     ) {
         if (this.disableSources || !sig) return;
 
@@ -138,12 +147,16 @@ export class SourcePlugin extends ConverterComponent {
 
         const position = ts.getLineAndCharacterOfPosition(
             sourceFile,
-            getLocationNode(sig).getStart()
+            getLocationNode(sig).getStart(),
         );
 
         reflection.sources ||= [];
         reflection.sources.push(
-            new SourceReference(fileName, position.line + 1, position.character)
+            new SourceReference(
+                fileName,
+                position.line + 1,
+                position.character,
+            ),
         );
     }
 
@@ -152,12 +165,13 @@ export class SourcePlugin extends ConverterComponent {
      *
      * @param context  The context object describing the current state the converter is in.
      */
+    @Bound
     private onBeginResolve(context: Context) {
         if (this.disableSources) return;
 
         if (this.disableGit && !this.sourceLinkTemplate) {
             this.application.logger.error(
-                `disableGit is set, but sourceLinkTemplate is not, so source links cannot be produced. Set a sourceLinkTemplate or disableSources to prevent source tracking.`
+                `disableGit is set, but sourceLinkTemplate is not, so source links cannot be produced. Set a sourceLinkTemplate or disableSources to prevent source tracking.`,
             );
             return;
         }
@@ -167,7 +181,7 @@ export class SourcePlugin extends ConverterComponent {
             !this.gitRevision
         ) {
             this.application.logger.warn(
-                `disableGit is set and sourceLinkTemplate contains {gitRevision}, which will be replaced with an empty string as no revision was provided.`
+                `disableGit is set and sourceLinkTemplate contains {gitRevision}, which will be replaced with an empty string as no revision was provided.`,
             );
         }
 
@@ -190,13 +204,13 @@ export class SourcePlugin extends ConverterComponent {
                 if (this.disableGit || gitIsInstalled()) {
                     const repo = this.getRepository(
                         basePath,
-                        source.fullFileName
+                        source.fullFileName,
                     );
                     source.url = repo?.getURL(source.fullFileName, source.line);
                 }
 
                 source.fileName = normalizePath(
-                    relative(basePath, source.fullFileName)
+                    relative(basePath, source.fullFileName),
                 );
             }
         }
@@ -210,13 +224,13 @@ export class SourcePlugin extends ConverterComponent {
      */
     private getRepository(
         basePath: string,
-        fileName: string
+        fileName: string,
     ): Repository | undefined {
         if (this.disableGit) {
             return new AssumedRepository(
                 basePath,
                 this.gitRevision,
-                this.sourceLinkTemplate
+                this.sourceLinkTemplate,
             );
         }
 
@@ -242,7 +256,7 @@ export class SourcePlugin extends ConverterComponent {
             this.sourceLinkTemplate,
             this.gitRevision,
             this.gitRemote,
-            this.application.logger
+            this.application.logger,
         );
         if (repository) {
             this.repositories[repository.path.toLowerCase()] = repository;

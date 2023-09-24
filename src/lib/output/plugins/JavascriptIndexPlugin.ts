@@ -6,12 +6,12 @@ import {
     DeclarationReflection,
     ProjectReflection,
 } from "../../models";
-import { Component, RendererComponent } from "../components";
-import { IndexEvent, RendererEvent } from "../events";
-import { Option, writeFile } from "../../utils";
-import { DefaultTheme } from "../themes/default/DefaultTheme";
+import { RendererEvent } from "../events";
+import { Option, Plugin, writeFile } from "../../utils";
 import { gzip } from "zlib";
 import { promisify } from "util";
+import type { Application } from "../../application";
+import { HtmlOutput } from "../html-output";
 
 const gzipP = promisify(gzip);
 
@@ -31,16 +31,19 @@ interface SearchDocument {
  *
  * The resulting javascript file can be used to build a simple search function.
  */
-@Component({ name: "javascript-index" })
-export class JavascriptIndexPlugin extends RendererComponent {
+@Plugin("typedoc:searchIndex")
+export class JavascriptIndexPlugin {
     @Option("searchInComments")
     accessor searchComments!: boolean;
 
     /**
      * Create a new JavascriptIndexPlugin instance.
      */
-    override initialize() {
-        this.owner.on(RendererEvent.BEGIN, this.onRendererBegin.bind(this));
+    constructor(readonly application: Application) {
+        application.renderer.on(
+            RendererEvent.BEGIN,
+            this.onRendererBegin.bind(this),
+        );
     }
 
     /**
@@ -49,22 +52,21 @@ export class JavascriptIndexPlugin extends RendererComponent {
      * @param event  An event object describing the current render operation.
      */
     private onRendererBegin() {
-        if (!(this.owner.theme instanceof DefaultTheme)) {
-            return;
+        if (this.application.renderer.output instanceof HtmlOutput) {
+            this.application.renderer.preRenderAsyncJobs.push((event) =>
+                this.buildSearchIndex(event),
+            );
         }
-
-        this.owner.preRenderAsyncJobs.push((event) =>
-            this.buildSearchIndex(event)
-        );
     }
 
-    private async buildSearchIndex(event: RendererEvent) {
-        const theme = this.owner.theme as DefaultTheme;
+    async buildSearchIndex(event: RendererEvent) {
+        const output = this.application.renderer.output;
+        if (!(output instanceof HtmlOutput)) return;
 
         const rows: SearchDocument[] = [];
 
         const initialSearchResults = Object.values(
-            event.project.reflections
+            event.project.reflections,
         ).filter((refl) => {
             return (
                 refl instanceof DeclarationReflection &&
@@ -74,21 +76,14 @@ export class JavascriptIndexPlugin extends RendererComponent {
             );
         }) as DeclarationReflection[];
 
-        const indexEvent = new IndexEvent(initialSearchResults);
-
-        this.owner.trigger(IndexEvent.PREPARE_INDEX, indexEvent);
-
         const builder = new Builder();
         builder.pipeline.add(trimmer);
 
         builder.ref("id");
-        for (const [key, boost] of Object.entries(
-            indexEvent.searchFieldWeights
-        )) {
-            builder.field(key, { boost });
-        }
+        builder.field("name", { boost: 10 });
+        builder.field("comment", { boost: 10 });
 
-        for (const reflection of indexEvent.searchResults) {
+        for (const reflection of initialSearchResults) {
             if (!reflection.url) {
                 continue;
             }
@@ -107,7 +102,7 @@ export class JavascriptIndexPlugin extends RendererComponent {
                 kind: reflection.kind,
                 name: reflection.name,
                 url: reflection.url,
-                classes: theme.getReflectionClasses(reflection),
+                classes: output.getReflectionClasses?.(reflection),
             };
 
             if (parent) {
@@ -118,10 +113,9 @@ export class JavascriptIndexPlugin extends RendererComponent {
                 {
                     name: reflection.name,
                     comment: this.getCommentSearchText(reflection),
-                    ...indexEvent.searchFields[rows.length],
                     id: rows.length,
                 },
-                { boost }
+                { boost },
             );
             rows.push(row);
         }
@@ -131,7 +125,7 @@ export class JavascriptIndexPlugin extends RendererComponent {
         const jsonFileName = Path.join(
             event.outputDirectory,
             "assets",
-            "search.js"
+            "search.js",
         );
 
         const jsonData = JSON.stringify({
@@ -143,8 +137,8 @@ export class JavascriptIndexPlugin extends RendererComponent {
         await writeFile(
             jsonFileName,
             `window.searchData = "data:application/octet-stream;base64,${data.toString(
-                "base64"
-            )}";`
+                "base64",
+            )}";`,
         );
     }
 
@@ -154,7 +148,7 @@ export class JavascriptIndexPlugin extends RendererComponent {
         const comments: Comment[] = [];
         if (reflection.comment) comments.push(reflection.comment);
         reflection.signatures?.forEach(
-            (s) => s.comment && comments.push(s.comment)
+            (s) => s.comment && comments.push(s.comment),
         );
         reflection.getSignature?.comment &&
             comments.push(reflection.getSignature.comment);
