@@ -13,9 +13,12 @@ import { ReflectionKind } from "../../../models/reflections/kind";
 import * as Validation from "../../validation";
 import { blockTags, inlineTags, modifierTags } from "../tsdoc-defaults";
 import { getEnumKeys } from "../../enum";
+import { resolve } from "path";
 
 // For convenience, added in the same order as they are documented on the website.
-export function addTypeDocOptions(options: Pick<Options, "addDeclaration">) {
+export function addTypeDocOptions(
+    options: Pick<Options, "addDeclaration" | "addOutputShortcut">,
+) {
     ///////////////////////////
     // Configuration Options //
     ///////////////////////////
@@ -224,7 +227,15 @@ export function addTypeDocOptions(options: Pick<Options, "addDeclaration">) {
                 );
             }
         },
+        transform(value, configPath) {
+            const valueArr = value as Array<{ path: string; type: string }>;
+            return valueArr.map((item) => ({
+                type: item.type,
+                path: resolve(configPath, item.path),
+            }));
+        },
     });
+
     options.addDeclaration({
         name: "out",
         help: "Specify the location the documentation should be written to.",
@@ -232,12 +243,16 @@ export function addTypeDocOptions(options: Pick<Options, "addDeclaration">) {
         hint: ParameterHint.Directory,
         defaultValue: "./docs",
     });
+    options.addOutputShortcut("out", (path) => ({ type: "html", path }));
+
     options.addDeclaration({
         name: "json",
         help: "Specify the location and filename a JSON file describing the project is written to.",
         type: ParameterType.Path,
         hint: ParameterHint.File,
     });
+    options.addOutputShortcut("json", (path) => ({ type: "json", path }));
+
     options.addDeclaration({
         name: "pretty",
         help: "Specify whether the output JSON should be formatted with tabs.",

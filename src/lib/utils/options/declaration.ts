@@ -361,16 +361,6 @@ export interface NumberDeclarationOption extends DeclarationOptionBase {
     type: ParameterType.Number;
 
     /**
-     * Lowest possible value.
-     */
-    minValue?: number;
-
-    /**
-     * Highest possible value.
-     */
-    maxValue?: number;
-
-    /**
      * If not specified defaults to 0.
      */
     defaultValue?: number;
@@ -423,6 +413,13 @@ export interface MixedDeclarationOption extends DeclarationOptionBase {
      * The function must throw an Error if the validation fails and should do nothing otherwise.
      */
     validate?: (value: unknown) => void;
+
+    /**
+     * An optional transform function which takes the originally provided value and returns the value
+     * which ought to be stored instead. A return value of `null | undefined` indicates no transform
+     * should take place.
+     */
+    transform?: (value: unknown, configPath: string) => unknown;
 }
 
 export interface ObjectDeclarationOption extends DeclarationOptionBase {
@@ -526,11 +523,6 @@ const converters: {
     },
     [ParameterType.Number](value, option) {
         const numValue = parseInt(String(value), 10) || 0;
-        if (!valueIsWithinBounds(numValue, option.minValue, option.maxValue)) {
-            throw new Error(
-                getBoundsError(option.name, option.minValue, option.maxValue),
-            );
-        }
         option.validate?.(numValue);
         return numValue;
     },
@@ -600,9 +592,9 @@ const converters: {
             option.mapError ?? getMapError(option.map, option.name),
         );
     },
-    [ParameterType.Mixed](value, option) {
+    [ParameterType.Mixed](value, option, configPath) {
         option.validate?.(value);
-        return value;
+        return option.transform?.(value, configPath) ?? value;
     },
     [ParameterType.Object](value, option, _configPath, oldValue) {
         option.validate?.(value);
@@ -785,57 +777,4 @@ function getMapError(
     }
 
     return `${name} must be one of ${keys.join(", ")}`;
-}
-
-/**
- * Returns an error message for a value that is out of bounds of the given min and/or max values.
- * @param name The name of the thing the value represents.
- * @param minValue The lower bound of the range of allowed values.
- * @param maxValue The upper bound of the range of allowed values.
- * @returns The error message.
- */
-function getBoundsError(
-    name: string,
-    minValue?: number,
-    maxValue?: number,
-): string {
-    if (isFiniteNumber(minValue) && isFiniteNumber(maxValue)) {
-        return `${name} must be between ${minValue} and ${maxValue}`;
-    } else if (isFiniteNumber(minValue)) {
-        return `${name} must be >= ${minValue}`;
-    } else {
-        return `${name} must be <= ${maxValue}`;
-    }
-}
-
-/**
- * Checks if the given value is a finite number.
- * @param value The value being checked.
- * @returns True, if the value is a finite number, otherwise false.
- */
-function isFiniteNumber(value: unknown): value is number {
-    return Number.isFinite(value);
-}
-
-/**
- * Checks if a value is between the bounds of the given min and/or max values.
- * @param value The value being checked.
- * @param minValue The lower bound of the range of allowed values.
- * @param maxValue The upper bound of the range of allowed values.
- * @returns True, if the value is within the given bounds, otherwise false.
- */
-function valueIsWithinBounds(
-    value: number,
-    minValue?: number,
-    maxValue?: number,
-): boolean {
-    if (isFiniteNumber(minValue) && isFiniteNumber(maxValue)) {
-        return minValue <= value && value <= maxValue;
-    } else if (isFiniteNumber(minValue)) {
-        return minValue <= value;
-    } else if (isFiniteNumber(maxValue)) {
-        return value <= maxValue;
-    } else {
-        return true;
-    }
 }

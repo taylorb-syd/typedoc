@@ -3,7 +3,11 @@
 ### TODO
 
 -   Fix not exported warnings when building docs
--   Fix options reading to correctly handle `outputs.path`
+
+### Breaking Changes
+
+-   Introduced a new `outputs` option which can be set to an array of outputs to be produced by TypeDoc.
+    This can be used to render output with multiple themes, or even multiple output types.
 
 ### API Breaking Changes
 
@@ -12,6 +16,8 @@
     Most notably, `listenTo` no longer exists. Plugins should instead use `on`.
 -   `Converter.EVENT_CREATE_DECLARATION` will no longer sometimes be emitted for the root level `ProjectReflection`
 -   Removed `IndexEvent` which was created for plugin use, but ended up not actually being necessary.
+-   Removed `minValue` and `maxValue` on numeric options as it is not used by any actively maintained plugins or TypeDoc.
+-   Removed deprecated `BindOption` decorator.
 
 # Unreleased
 

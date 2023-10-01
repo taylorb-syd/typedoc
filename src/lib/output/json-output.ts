@@ -1,32 +1,25 @@
-import { MinimalDocument, Output, Router } from "./output";
+import { MinimalDocument, Output } from "./output";
 import type { ProjectReflection } from "../models";
 import type { Application } from "../application";
 
-export interface JsonOutputDocument extends MinimalDocument {
-    model: ProjectReflection;
-}
-
-// It's somewhat silly to have a router for one document, but requiring one
-// makes the renderer simpler.
-export class JsonOutputRouter extends Router<JsonOutputDocument> {
-    override getDocuments(project: ProjectReflection) {
-        return [{ filename: "", model: project }];
-    }
-}
-
-export class JsonOutput extends Output<MinimalDocument, {}> {
+export class JsonOutput extends Output<
+    MinimalDocument & { project: ProjectReflection },
+    {}
+> {
     constructor(private app: Application) {
         super();
     }
 
-    override buildRouter(basePath: string): JsonOutputRouter {
-        return new JsonOutputRouter(basePath);
+    override getDocuments(project: ProjectReflection) {
+        return [{ filename: "", project }];
     }
 
-    override render(document: JsonOutputDocument): string | Promise<string> {
+    override render(document: {
+        project: ProjectReflection;
+    }): string | Promise<string> {
         const json = this.app.serializer.projectToObject(
-            document.model,
-            document.filename,
+            document.project,
+            process.cwd(),
         );
         const pretty = this.app.options.getValue("pretty");
         return JSON.stringify(json, null, pretty ? "\t" : "");

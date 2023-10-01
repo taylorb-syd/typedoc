@@ -1,5 +1,4 @@
 {
-    "$schema": "https://typedoc.org/schema.json",
     "intentionallyNotExported": [
         "SORT_STRATEGIES",
         "_ModelToObject",
@@ -39,5 +38,15 @@
         "includeGroups": false
     },
     "includeVersion": true,
-    "logLevel": "Verbose"
+    "logLevel": "Verbose",
+    "outputs": [
+        {
+            "type": "html",
+            "path": "../docs"
+        },
+        {
+            "type": "json",
+            "path": "../docs/docs.json"
+        }
+    ]
 }

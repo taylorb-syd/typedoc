@@ -19,6 +19,7 @@ const schema = {
 };
 
 addTypeDocOptions({
+    addOutputShortcut() {},
     /** @param {import("../src").DeclarationOption} option */
     addDeclaration(option) {
         if (IGNORED_OPTIONS.has(option.name)) return;
@@ -64,8 +65,6 @@ addTypeDocOptions({
                     );
                 data.type = "number";
                 data.default = decl.defaultValue ?? 0;
-                data.maximum = decl.maxValue;
-                data.minimum = decl.minValue;
                 break;
             }
             case ParameterType.Map: {
@@ -156,6 +155,21 @@ schema.properties.extends = {
 delete schema.properties.sort.items.type;
 schema.properties.sort.items.enum =
     require("../src/lib/utils/sort").SORT_STRATEGIES;
+
+schema.properties.outputs.type = "array";
+schema.properties.outputs.items = {
+    type: "object",
+    required: ["path", "type"],
+    additionalProperties: false,
+    properties: {
+        type: {
+            anyOf: [{ enum: ["html", "json"] }, { type: "string" }],
+        },
+        path: {
+            type: "string",
+        },
+    },
+};
 
 const output = JSON.stringify(schema, null, "\t");
 

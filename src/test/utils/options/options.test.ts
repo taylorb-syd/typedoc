@@ -9,6 +9,7 @@ import type {
     DeclarationOption,
     EmitStrategy,
 } from "../../../lib/utils/options";
+import { resolve } from "path";
 
 describe("Options", () => {
     let options: Options & {
@@ -48,18 +49,6 @@ describe("Options", () => {
             help: "",
             type: ParameterType.Number,
             defaultValue: 1,
-        };
-        options.addDeclaration(declaration);
-    });
-
-    it("Does not throw if default value is out of range for number declaration", () => {
-        const declaration: NumberDeclarationOption = {
-            name: "test-number-declaration",
-            help: "",
-            type: ParameterType.Number,
-            minValue: 1,
-            maxValue: 10,
-            defaultValue: 0,
         };
         options.addDeclaration(declaration);
     });
@@ -185,6 +174,27 @@ describe("Options", () => {
         const options = new Options();
 
         throws(() => options.reset("thisOptionDoesNotExist" as never));
+    });
+
+    it("Supports deriving the options array", () => {
+        const options = new Options();
+        equal(options.getValue("outputs"), [
+            { type: "html", path: resolve(process.cwd(), "docs") },
+        ]);
+
+        options.setValue("json", "./json.json");
+        equal(options.getValue("outputs"), [
+            { type: "json", path: resolve(process.cwd(), "./json.json") },
+        ]);
+
+        options.setValue("out", "./docs");
+        equal(options.getValue("outputs"), [
+            { type: "html", path: resolve(process.cwd(), "./docs") },
+            { type: "json", path: resolve(process.cwd(), "./json.json") },
+        ]);
+
+        options.setValue("outputs", []);
+        equal(options.getValue("outputs"), []);
     });
 });
 

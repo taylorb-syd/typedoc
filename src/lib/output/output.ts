@@ -8,28 +8,6 @@ export interface MinimalDocument {
 }
 
 /**
- * The Router class of an Output determines which files the output
- * will write and the relations between those documents. Not that this
- * interface doesn't actually require a `urlTo` method because even single
- * file outputs that don't have any links have a minimal router.
- */
-export abstract class Router<TDocument extends MinimalDocument> {
-    /**
-     * Will not be set when {@link getDocuments} is called, but will be set
-     * before any url resolution methods are called.
-     */
-    currentDocument!: TDocument;
-
-    constructor(readonly basePath: string) {}
-
-    abstract getDocuments(project: ProjectReflection): TDocument[];
-
-    setCurrentDocument(doc: TDocument) {
-        this.currentDocument = doc;
-    }
-}
-
-/**
  * Base class of all output types.
  *
  * 0-N outputs may be enabled by the user. When enabled, the {@link Renderer} will construct
@@ -49,11 +27,6 @@ export abstract class Output<
     TEvents extends Record<keyof TEvents, unknown[]> = {},
 > extends EventDispatcher<TEvents> {
     /**
-     * Will be set to the result of {@link buildRouter}
-     */
-    public router!: ReturnType<(typeof this)["buildRouter"]>;
-
-    /**
      * Will be called once before any calls to {@link render}.
      */
     async setup(_app: Application): Promise<void> {}
@@ -64,14 +37,14 @@ export abstract class Output<
     async teardown(_app: Application): Promise<void> {}
 
     /**
-     * Called once after {@link setup} to get the router which will be used to get the
-     * documents to render.
+     * Called once after {@link setup} to get the documents which should be passed to {@link render}.
+     * The filenames of all returned documents should be
      */
-    abstract buildRouter(basePath: string): Router<TDocument>;
+    abstract getDocuments(project: ProjectReflection): TDocument[];
 
     /**
      * Renders the provided page to a string, which will be written to disk by the {@link Renderer}
-     * This will be called for each document rendered by {@link Router.getDocuments}.
+     * This will be called for each document returned by {@link getDocuments}.
      */
     abstract render(document: TDocument): string | Promise<string>;
 }

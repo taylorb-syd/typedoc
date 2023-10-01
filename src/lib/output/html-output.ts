@@ -11,7 +11,7 @@ import { EventHooks, Option } from "../utils";
 import { setRenderSettings } from "../utils/jsx";
 import type { JsxElement } from "../utils/jsx.elements";
 import type { MarkdownEvent } from "./events";
-import { MinimalDocument, Output, Router } from "./output";
+import { MinimalDocument, Output } from "./output";
 import type { DefaultThemeRenderContext } from "./themes/default/DefaultThemeRenderContext";
 
 export interface NavigationElement {
@@ -113,23 +113,19 @@ const kindMappings = new Map([
 
 const URL_PREFIX = /^(http|ftp)s?:\/\//;
 
-export abstract class HtmlOutputRouter extends Router<HtmlOutputDocument> {
+export abstract class HtmlOutputRouter {
     private absoluteToRelativePathMap = new Map<string, string>();
     private renderStartTime = Date.now();
     private location = "";
+    currentDocument!: HtmlOutputDocument;
 
     @Option("cacheBust")
     accessor cacheBust!: boolean;
 
-    constructor(
-        basePath: string,
-        readonly application: Application,
-    ) {
-        super(basePath);
-    }
+    constructor(readonly application: Application) {}
 
-    override setCurrentDocument(doc: HtmlOutputDocument): void {
-        super.setCurrentDocument(doc);
+    setCurrentDocument(doc: HtmlOutputDocument): void {
+        this.currentDocument = doc;
         this.location = posix.dirname(doc.filename);
     }
 
@@ -152,6 +148,8 @@ export abstract class HtmlOutputRouter extends Router<HtmlOutputDocument> {
         this.absoluteToRelativePathMap.set(key, path);
         return path;
     }
+
+    abstract getDocuments(project: ProjectReflection): HtmlOutputDocument[];
 }
 
 export class KindFolderHtmlOutputRouter extends HtmlOutputRouter {
@@ -274,6 +272,11 @@ export abstract class HtmlOutput<
 > extends Output<HtmlOutputDocument, TEvents & HtmlOutputEvents> {
     private _navigationCache: NavigationElement[] | undefined;
 
+    /**
+     * Set during rendering, but not during setup.
+     */
+    public router!: HtmlOutputRouter;
+
     @Option("cacheBust")
     accessor cacheBust!: boolean;
 
@@ -319,7 +322,7 @@ export abstract class HtmlOutput<
      */
     abstract buildNavigation(project: ProjectReflection): NavigationElement[];
 
-    abstract override buildRouter(basePath: string): HtmlOutputRouter;
+    abstract buildRouter(): HtmlOutputRouter;
 
     /**
      * By default, enables syntax highlighting.
@@ -327,6 +330,11 @@ export abstract class HtmlOutput<
     override async setup(app: Application) {
         setRenderSettings({ pretty: app.options.getValue("pretty") });
         await app.getPlugin("typedoc:marked").loadHighlighter();
+    }
+
+    override getDocuments(project: ProjectReflection): HtmlOutputDocument[] {
+        this.router = this.buildRouter();
+        return this.router.getDocuments(project);
     }
 }
 

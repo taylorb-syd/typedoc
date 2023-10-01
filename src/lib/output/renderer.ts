@@ -128,43 +128,9 @@ export class Renderer extends EventDispatcher<RendererEvents> {
      * Render the given project reflection to all user configured outputs.
      */
     async writeOutputs(project: ProjectReflection): Promise<void> {
-        const options = this.application.options;
-        const outputs: OutputOptions[] = [];
-
-        // If the user set a shortcut option, ignore the outputs config, they probably
-        // just wanted this one. It'd be nice to make this available to the markdown plugin
-        // too...
-        if (options.isSet("out") || options.isSet("json")) {
-            if (options.getValue("out")) {
-                outputs.push({
-                    type: "html",
-                    path: options.getValue("out"),
-                });
-            }
-            if (options.getValue("json")) {
-                outputs.push({
-                    type: "json",
-                    path: options.getValue("json"),
-                });
-            }
-
-            if (options.isSet("outputs")) {
-                this.logger.info(
-                    "Ignoring 'outputs' configuration as 'out' or 'json' was specified.",
-                );
-            }
-        } else if (options.isSet("outputs")) {
-            outputs.push(...options.getValue("outputs"));
-        }
-
-        // No outputs = render html to docs in current directory
-        if (!outputs.length) {
-            outputs.push({
-                type: "html",
-                path: process.cwd() + "/docs",
-            });
-        }
-
+        // This will get the "outputs" option if configured, or derive it from
+        // the --out / --json options otherwise.
+        const outputs = this.application.options.getValue("outputs");
         for (const output of outputs) {
             await this.writeOutput(project, output);
         }
@@ -177,26 +143,27 @@ export class Renderer extends EventDispatcher<RendererEvents> {
         project: ProjectReflection,
         output: OutputOptions,
     ): Promise<void> {
+        const ctor = this.outputs.get(output.type);
+        if (!ctor) {
+            this.application.logger.error(
+                `Skipping output "${
+                    output.type
+                }" as it has not been defined. Ensure you have loaded the providing plugin. The available output types are:\n\t${Array.from(
+                    this.outputs.keys(),
+                ).join("\n\t")}`,
+            );
+            return;
+        }
+
         const start = Date.now();
         const event = new RendererEvent(output.path, project);
 
         this.trigger(RendererEvent.BEGIN, event);
         await this.runPreRenderJobs(event);
 
-        const ctor = this.outputs.get(output.type);
-        if (!ctor) {
-            this.application.logger.error(
-                `Skipping output "${output.type}" as it has not been defined. Ensure you have loaded the providing plugin.`,
-            );
-            return;
-        }
-
         this.output = new ctor(this.application);
         await this.output.setup(this.application);
-        const router = (this.output.router = this.output.buildRouter(
-            output.path,
-        ));
-        const documents = router.getDocuments(project);
+        const documents = this.output.getDocuments(project);
 
         if (documents.length > 1) {
             // We're writing more than one document, so the output path should be a directory.
@@ -208,11 +175,9 @@ export class Renderer extends EventDispatcher<RendererEvents> {
             }
         }
 
-        this.logger.verbose(`There are ${documents.length} documents to write`);
+        this.logger.verbose(`${documents.length} document(s) to write`);
 
         for (const doc of documents) {
-            router.setCurrentDocument(doc);
-
             const pageEvent = new PageEvent(project, doc);
             this.trigger(PageEvent.BEGIN, pageEvent);
             pageEvent.contents = await this.output.render(doc);

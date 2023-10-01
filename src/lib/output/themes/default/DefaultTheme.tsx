@@ -21,8 +21,8 @@ export class DefaultHtmlOutput<TEvents extends Record<keyof TEvents, unknown[]>>
     @Option("visibilityFilters")
     accessor visibilityFilters!: Record<string, boolean>;
 
-    override buildRouter(basePath: string): HtmlOutputRouter {
-        return new KindFolderHtmlOutputRouter(basePath, this.application);
+    override buildRouter(): HtmlOutputRouter {
+        return new KindFolderHtmlOutputRouter(this.application);
     }
 
     getRenderContext(doc: HtmlOutputDocument): DefaultThemeRenderContext {

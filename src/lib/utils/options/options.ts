@@ -1,5 +1,5 @@
 import type * as ts from "typescript";
-import { ParameterType } from "./declaration";
+import { OutputOptions, ParameterType } from "./declaration";
 import type { NeverIfInternal } from "..";
 import type { Application } from "../../..";
 import { insertOrderSorted, unique } from "../array";
@@ -93,6 +93,10 @@ export class Options {
     private _compilerOptions: ts.CompilerOptions = {};
     private _fileNames: readonly string[] = [];
     private _projectReferences: readonly ts.ProjectReference[] = [];
+    private _outputShortcuts: {
+        name: string;
+        builder: (value: never) => OutputOptions;
+    }[] = [];
 
     /**
      * In packages mode, the directory of the package being converted.
@@ -214,6 +218,13 @@ export class Options {
         this._values[declaration.name] = getDefaultValue(declaration);
     }
 
+    addOutputShortcut<K extends keyof TypeDocOptions>(
+        name: K,
+        builder: (value: K) => OutputOptions,
+    ) {
+        this._outputShortcuts.push({ name, builder });
+    }
+
     /**
      * Gets a declaration by one of its names.
      * @param name
@@ -264,6 +275,28 @@ export class Options {
                     "\n\t",
                 )}`,
             );
+        }
+
+        // It'd be kind of nice to get rid of this hardcoded check for a specific option
+        // and allow declarations to declare themselves "derived" somehow... future problem.
+        if (declaration.name === "outputs" && !this.isSet("outputs")) {
+            const outputs: OutputOptions[] = [];
+            // Build outputs based on shortcuts
+            for (const { name, builder } of this._outputShortcuts) {
+                if (this.isSet(name as never)) {
+                    outputs.push(builder(this.getValue(name as never)));
+                }
+            }
+
+            if (!outputs.length) {
+                outputs.push(
+                    this._outputShortcuts[0].builder(
+                        this.getValue(this._outputShortcuts[0].name as never),
+                    ),
+                );
+            }
+
+            return outputs;
         }
 
         return this._values[declaration.name];
@@ -433,60 +466,6 @@ export function Option<K extends keyof TypeDocOptionMap>(name: K) {
                 );
             },
         };
-    };
-}
-
-/**
- * Binds an option to the given property. Does not register the option.
- *
- * Note: This is a legacy experimental decorator, and will not work with TS 5.0 decorators
- *
- * @since v0.16.3
- * @deprecated Will be removed in 0.26, use {@link Option | `@Option`} instead.
- */
-export function BindOption<K extends keyof TypeDocOptionMap>(
-    name: K,
-): <IK extends PropertyKey>(
-    target: ({ application: Application } | { options: Options }) & {
-        [K2 in IK]: TypeDocOptionValues[K];
-    },
-    key: IK,
-) => void;
-
-/**
- * Binds an option to the given property. Does not register the option.
- *
- * Note: This is a legacy experimental decorator, and will not work with TS 5.0 decorators
- *
- * @since v0.16.3
- * @deprecated Will be removed in 0.26, use {@link Option | `@Option`} instead
- *
- * @privateRemarks
- * This overload is intended for plugin use only with looser type checks. Do not use internally.
- */
-export function BindOption(
-    name: NeverIfInternal<string>,
-): (
-    target: { application: Application } | { options: Options },
-    key: PropertyKey,
-) => void;
-
-export function BindOption(name: string) {
-    return function (
-        target: { application: Application } | { options: Options },
-        key: PropertyKey,
-    ) {
-        Object.defineProperty(target, key, {
-            get(this: { application: Application } | { options: Options }) {
-                const options =
-                    "options" in this ? this.options : this.application.options;
-                const value = options.getValue(name as keyof TypeDocOptions);
-
-                return value;
-            },
-            enumerable: true,
-            configurable: true,
-        });
     };
 }
 
