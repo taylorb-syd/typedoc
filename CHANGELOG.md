@@ -1,9 +1,5 @@
 # Beta
 
-### TODO
-
--   Fix not exported warnings when building docs
-
 ### Breaking Changes
 
 -   Introduced a new `outputs` option which can be set to an array of outputs to be produced by TypeDoc.
@@ -14,10 +10,15 @@
 -   Heavily refactored the "Component" structure that TypeDoc is based on to provided typed events.
     This resulted in several component related methods being removed from Application, Converter, etc.
     Most notably, `listenTo` no longer exists. Plugins should instead use `on`.
+-   Events are now typed to prevent accidentally listening to the wrong event emitter.
+-   `DefaultTheme` has been renamed to `DefaultHtmlOutput`, and `DefaultThemeContext` to `DefaultHtmlOutputContext`
 -   `Converter.EVENT_CREATE_DECLARATION` will no longer sometimes be emitted for the root level `ProjectReflection`
 -   Removed `IndexEvent` which was created for plugin use, but ended up not actually being necessary.
 -   Removed `minValue` and `maxValue` on numeric options as it is not used by any actively maintained plugins or TypeDoc.
 -   Removed deprecated `BindOption` decorator.
+-   HTML hooks and the `parseMarkdown` and `includeMarkdown` events are no longer emitted from `Renderer` as `Renderer` no longer knows
+    what type of output it is writing. If you need these events, listen to `Renderer.EVENT_BEGIN` and check if `renderer.output`
+    is `instanceof HtmlOutput`. If it is, they are available on that object.
 
 # Unreleased
 

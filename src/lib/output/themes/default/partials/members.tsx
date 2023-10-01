@@ -1,9 +1,9 @@
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 import { JSX } from "../../../../utils";
 import { ContainerReflection, DeclarationReflection } from "../../../../models";
 import { classNames } from "../../lib";
 
-export function members(context: DefaultThemeRenderContext, props: ContainerReflection) {
+export function members(context: DefaultHtmlRenderContext, props: ContainerReflection) {
     if (props.categories && props.categories.length) {
         return (
             <>

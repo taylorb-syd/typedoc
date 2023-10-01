@@ -38,7 +38,7 @@ import {
 } from "./comments/linkResolver";
 import type { DeclarationReference } from "./comments/declarationReference";
 
-interface ConverterEvents {
+export interface ConverterEvents {
     begin: [Context];
     end: [Context];
     createDeclaration: [Context, DeclarationReflection];

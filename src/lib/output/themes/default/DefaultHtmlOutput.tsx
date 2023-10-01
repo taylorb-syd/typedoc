@@ -6,7 +6,7 @@ import {
     ReflectionCategory,
     ReflectionGroup,
 } from "../../../models";
-import { JSX, Option } from "../../../utils";
+import { Option } from "../../../utils";
 import { classNames, getDisplayName, toStyleClass } from "../lib";
 import {
     HtmlOutput,
@@ -15,7 +15,7 @@ import {
     KindFolderHtmlOutputRouter,
     NavigationElement,
 } from "../../html-output";
-import { DefaultThemeRenderContext } from "./DefaultThemeRenderContext";
+import { DefaultHtmlRenderContext } from "./DefaultHtmlRenderContext";
 
 export class DefaultHtmlOutput<TEvents extends Record<keyof TEvents, unknown[]>> extends HtmlOutput<TEvents> {
     @Option("visibilityFilters")
@@ -25,15 +25,8 @@ export class DefaultHtmlOutput<TEvents extends Record<keyof TEvents, unknown[]>>
         return new KindFolderHtmlOutputRouter(this.application);
     }
 
-    getRenderContext(doc: HtmlOutputDocument): DefaultThemeRenderContext {
-        return new DefaultThemeRenderContext(this, doc, this.router, this.application.options);
-    }
-
-    override render(document: HtmlOutputDocument): string {
-        const context = this.getRenderContext(document);
-        const template = document.template === "index" ? context.indexTemplate : context.reflectionTemplate;
-        const templateOutput = context.defaultLayout(template, document);
-        return "<!DOCTYPE html>" + JSX.renderElement(templateOutput);
+    getRenderContext(doc: HtmlOutputDocument): DefaultHtmlRenderContext {
+        return new DefaultHtmlRenderContext(this, doc, this.application.options);
     }
 
     override getReflectionClasses(reflection: DeclarationReflection): string {
@@ -44,12 +37,6 @@ export class DefaultHtmlOutput<TEvents extends Record<keyof TEvents, unknown[]>>
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const output = this;
         const opts = this.application.options.getValue("navigation");
-
-        if (opts.fullTree) {
-            this.application.logger.warn(
-                `The navigation.fullTree option no longer has any affect and will be removed in v0.26`,
-            );
-        }
 
         return getNavigationElements(project) || [];
 

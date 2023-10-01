@@ -57,7 +57,7 @@ export type {
     ManuallyValidatedOption,
     JsDocCompatibility,
 } from "./options";
-export { loadPlugins, Plugin } from "./plugins";
+export { loadPlugins, Plugin, type TypeDocPlugins } from "./plugins";
 export { getSortFunction } from "./sort";
 export type { SortStrategy } from "./sort";
 

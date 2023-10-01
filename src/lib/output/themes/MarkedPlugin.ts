@@ -16,10 +16,6 @@ import type { Application } from "../../application";
 import { HtmlOutput, HtmlOutputDocument } from "../html-output";
 import type { MinimalDocument } from "..";
 
-/**
- * Implements markdown and relativeURL helpers for templates.
- * @internal
- */
 @Plugin("typedoc:marked")
 export class MarkedPlugin {
     @Option("includes")

@@ -1,4 +1,4 @@
-import type { DefaultThemeRenderContext } from "..";
+import type { DefaultHtmlRenderContext } from "..";
 import {
     DeclarationReflection,
     ProjectReflection,
@@ -94,7 +94,7 @@ export function hasTypeParameters(
 }
 
 export function renderTypeParametersSignature(
-    context: DefaultThemeRenderContext,
+    context: DefaultHtmlRenderContext,
     typeParameters: readonly TypeParameterReflection[] | undefined,
 ): JSX.Element {
     if (!typeParameters || typeParameters.length === 0) return <></>;

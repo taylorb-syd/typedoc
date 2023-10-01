@@ -1,10 +1,10 @@
 import { classNames, renderName } from "../../lib";
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 import { JSX } from "../../../../utils";
 import type { ContainerReflection, ReflectionCategory } from "../../../../models";
 
 function renderCategory(
-    { urlTo, icons, getReflectionClasses }: DefaultThemeRenderContext,
+    { urlTo, icons, getReflectionClasses }: DefaultHtmlRenderContext,
     item: ReflectionCategory,
     prependName = "",
 ) {
@@ -32,7 +32,7 @@ function renderCategory(
     );
 }
 
-export function index(context: DefaultThemeRenderContext, props: ContainerReflection) {
+export function index(context: DefaultHtmlRenderContext, props: ContainerReflection) {
     let content: JSX.Element | JSX.Element[] = [];
 
     if (props.categories?.length) {

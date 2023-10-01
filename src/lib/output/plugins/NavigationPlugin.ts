@@ -5,6 +5,7 @@ import { gzip } from "zlib";
 import { promisify } from "util";
 import type { Application } from "../../application";
 import { HtmlOutput } from "../html-output";
+import { DefaultHtmlOutput } from "../themes/default/DefaultHtmlOutput";
 
 const gzipP = promisify(gzip);
 
@@ -16,7 +17,7 @@ export class NavigationPlugin {
 
     @Bound
     private onRendererBegin() {
-        if (this.application.renderer.output instanceof HtmlOutput) {
+        if (this.application.renderer.output instanceof DefaultHtmlOutput) {
             this.application.renderer.preRenderAsyncJobs.push((event) =>
                 this.buildNavigationIndex(event),
             );
@@ -33,7 +34,7 @@ export class NavigationPlugin {
             "navigation.js",
         );
 
-        const nav = theme.getNavigation?.(event.project);
+        const nav = theme.getNavigation(event.project);
         if (!nav) return;
         const gz = await gzipP(Buffer.from(JSON.stringify(nav)));
 

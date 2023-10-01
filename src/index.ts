@@ -1,4 +1,4 @@
-export { Application } from "./lib/application";
+export { Application, type ApplicationEvents } from "./lib/application";
 
 export { resetReflectionID } from "./lib/models/reflections/abstract";
 /**
@@ -13,6 +13,7 @@ export * from "./lib/models";
 export {
     Converter,
     Context,
+    type ConverterEvents,
     type CommentParserConfig,
     type DeclarationReference,
     type SymbolReference,
@@ -25,10 +26,22 @@ export {
 
 export {
     Renderer,
-    DefaultThemeRenderContext,
+    type RendererEvents,
+    DefaultHtmlOutput,
+    type HtmlRenderContext,
+    DefaultHtmlRenderContext,
     PageEvent,
     RendererEvent,
     MarkdownEvent,
+    HtmlOutput,
+    HtmlOutputDocument,
+    type HtmlOutputEvents,
+    HtmlOutputRouter,
+    type HtmlRendererHooks,
+    KindFolderHtmlOutputRouter,
+    type MinimalDocument,
+    type NavigationElement,
+    Output,
 } from "./lib/output";
 
 export {
@@ -54,6 +67,7 @@ export {
 export type {
     OptionsReader,
     TypeDocOptions,
+    TypeDocPlugins,
     TypeDocOptionMap,
     ValidationOptions,
     TypeDocOptionValues,

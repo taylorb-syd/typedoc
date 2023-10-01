@@ -57,12 +57,13 @@ export class PageEvent<out TDocument extends MinimalDocument> {
     readonly document: TDocument;
 
     /**
-     * The final html content of this page.
+     * The final content of this page to write. This will be a string for TypeDoc's default
+     * HTML and JSON documents, but may be a buffer for flexibility with plugins.
      *
      * Should be rendered by layout templates and can be modified by plugins
      * during the {@link END} event.
      */
-    contents?: string;
+    contents?: string | Buffer;
 
     /**
      * Triggered before a document will be rendered.

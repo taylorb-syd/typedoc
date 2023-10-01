@@ -1,9 +1,9 @@
 import type { DeclarationReflection } from "../../../../models";
 import { JSX } from "../../../../utils";
 import { classNames } from "../../lib";
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 
-export const memberGetterSetter = (context: DefaultThemeRenderContext, props: DeclarationReflection) => (
+export const memberGetterSetter = (context: DefaultHtmlRenderContext, props: DeclarationReflection) => (
     <>
         <ul
             class={classNames(

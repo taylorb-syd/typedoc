@@ -1,7 +1,7 @@
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 import { JSX } from "../../../../utils";
 
-export function analytics(context: DefaultThemeRenderContext) {
+export function analytics(context: DefaultHtmlRenderContext) {
     const gaID = context.options.getValue("gaID");
     if (!gaID) return;
 

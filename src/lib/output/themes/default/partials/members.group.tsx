@@ -1,8 +1,8 @@
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 import { JSX } from "../../../../utils";
 import type { ReflectionGroup } from "../../../../models";
 
-export function membersGroup(context: DefaultThemeRenderContext, group: ReflectionGroup) {
+export function membersGroup(context: DefaultHtmlRenderContext, group: ReflectionGroup) {
     if (group.categories) {
         return (
             <>

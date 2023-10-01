@@ -1,8 +1,8 @@
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 import { ArrayType, ReferenceType, SignatureReflection, Type } from "../../../../models";
 import { JSX } from "../../../../utils";
 
-export const typeAndParent = (context: DefaultThemeRenderContext, props: Type): JSX.Element => {
+export const typeAndParent = (context: DefaultHtmlRenderContext, props: Type): JSX.Element => {
     if (!props) return <>void</>;
 
     if (props instanceof ArrayType) {

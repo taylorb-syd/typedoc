@@ -1,8 +1,8 @@
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 import { JSX } from "../../../../utils";
 import type { Reflection } from "../../../../models";
 
-export const breadcrumb = (context: DefaultThemeRenderContext, props: Reflection): JSX.Element | undefined =>
+export const breadcrumb = (context: DefaultHtmlRenderContext, props: Reflection): JSX.Element | undefined =>
     props.parent ? (
         <>
             {context.breadcrumb(props.parent)}

@@ -17,7 +17,7 @@ import { Option, EventDispatcher } from "../utils";
 import "./plugins";
 import type { OutputOptions } from "../utils/options/declaration";
 import { JsonOutput } from "./json-output";
-import { DefaultHtmlOutput } from "./themes/default/DefaultTheme";
+import { DefaultHtmlOutput } from "./themes/default/DefaultHtmlOutput";
 import { join } from "path";
 import { nicePath } from "../utils/paths";
 
@@ -25,7 +25,7 @@ import { nicePath } from "../utils/paths";
  * Events emitted by the {@link Renderer}.
  * Event listeners should take an argument of the specified type.
  */
-interface RendererEvents {
+export interface RendererEvents {
     /**
      * Emitted before a document has been rendered.
      */
@@ -35,7 +35,7 @@ interface RendererEvents {
      */
     endPage: [PageEvent<MinimalDocument>];
     /**
-     * Emitted before the renderer starts rendering a project.
+     * Emitted before the renderer starts rendering a project, after {@link Renderer.output} has been created.
      */
     beginRender: [RendererEvent];
     /**
@@ -156,15 +156,11 @@ export class Renderer extends EventDispatcher<RendererEvents> {
         }
 
         const start = Date.now();
-        const event = new RendererEvent(output.path, project);
-
-        this.trigger(RendererEvent.BEGIN, event);
-        await this.runPreRenderJobs(event);
 
         this.output = new ctor(this.application);
         await this.output.setup(this.application);
-        const documents = this.output.getDocuments(project);
 
+        const documents = this.output.getDocuments(project);
         if (documents.length > 1) {
             // We're writing more than one document, so the output path should be a directory.
             const success = await this.prepareOutputDirectory(output.path);
@@ -174,6 +170,10 @@ export class Renderer extends EventDispatcher<RendererEvents> {
                 return;
             }
         }
+
+        const event = new RendererEvent(output.path, project);
+        this.trigger(RendererEvent.BEGIN, event);
+        await this.runPreRenderJobs(event);
 
         this.logger.verbose(`${documents.length} document(s) to write`);
 

@@ -1,9 +1,9 @@
 import { getKindClass, join, renderTypeParametersSignature, wbr } from "../../lib";
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 import { JSX } from "../../../../utils";
 import { ParameterReflection, ReflectionKind, SignatureReflection } from "../../../../models";
 
-function renderParameterWithType(context: DefaultThemeRenderContext, item: ParameterReflection) {
+function renderParameterWithType(context: DefaultHtmlRenderContext, item: ParameterReflection) {
     return (
         <>
             {!!item.flags.isRest && <span class="tsd-signature-symbol">...</span>}
@@ -29,7 +29,7 @@ function renderParameterWithoutType(item: ParameterReflection) {
 }
 
 export function memberSignatureTitle(
-    context: DefaultThemeRenderContext,
+    context: DefaultHtmlRenderContext,
     props: SignatureReflection,
     { hideName = false, arrowStyle = false }: { hideName?: boolean; arrowStyle?: boolean } = {},
 ) {

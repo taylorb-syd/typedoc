@@ -12,6 +12,7 @@ import { gzip } from "zlib";
 import { promisify } from "util";
 import type { Application } from "../../application";
 import { HtmlOutput } from "../html-output";
+import { DefaultHtmlOutput } from "../themes/default/DefaultHtmlOutput";
 
 const gzipP = promisify(gzip);
 
@@ -52,7 +53,7 @@ export class JavascriptIndexPlugin {
      * @param event  An event object describing the current render operation.
      */
     private onRendererBegin() {
-        if (this.application.renderer.output instanceof HtmlOutput) {
+        if (this.application.renderer.output instanceof DefaultHtmlOutput) {
             this.application.renderer.preRenderAsyncJobs.push((event) =>
                 this.buildSearchIndex(event),
             );

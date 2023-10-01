@@ -1,9 +1,9 @@
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 import { JSX } from "../../../../utils";
 import type { DeclarationReflection, SignatureReflection } from "../../../../models";
 
 export const memberSources = (
-    context: DefaultThemeRenderContext,
+    context: DefaultHtmlRenderContext,
     props: SignatureReflection | DeclarationReflection,
 ) => {
     const sources: JSX.Element[] = [];

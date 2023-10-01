@@ -15,6 +15,7 @@ export {
 
 export type {
     TypeDocOptions,
+    OutputOptions,
     TypeDocOptionMap,
     ValidationOptions,
     KeyToDeclaration,

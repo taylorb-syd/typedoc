@@ -1,8 +1,8 @@
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 import { JSX } from "../../../../utils";
 import type { DeclarationHierarchy } from "../../../../models";
 
-export function hierarchy(context: DefaultThemeRenderContext, props: DeclarationHierarchy | undefined) {
+export function hierarchy(context: DefaultHtmlRenderContext, props: DeclarationHierarchy | undefined) {
     if (!props) return;
 
     return (
@@ -13,7 +13,7 @@ export function hierarchy(context: DefaultThemeRenderContext, props: Declaration
     );
 }
 
-function hierarchyList(context: DefaultThemeRenderContext, props: DeclarationHierarchy) {
+function hierarchyList(context: DefaultHtmlRenderContext, props: DeclarationHierarchy) {
     return (
         <ul class="tsd-hierarchy">
             {props.types.map((item, i, l) => (

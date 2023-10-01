@@ -1,9 +1,9 @@
 import type { DeclarationReflection, ReflectionType } from "../../../../models";
 import { JSX } from "../../../../utils";
 import { getKindClass, hasTypeParameters, renderTypeParametersSignature, wbr } from "../../lib";
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 
-export function memberDeclaration(context: DefaultThemeRenderContext, props: DeclarationReflection) {
+export function memberDeclaration(context: DefaultHtmlRenderContext, props: DeclarationReflection) {
     function renderTypeDeclaration(type: ReflectionType) {
         return (
             <div class="tsd-type-declaration">

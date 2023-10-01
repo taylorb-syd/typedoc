@@ -1,8 +1,8 @@
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 import type { TypeParameterReflection } from "../../../../models";
 import { JSX } from "../../../../utils";
 
-export function typeParameters(context: DefaultThemeRenderContext, typeParameters: TypeParameterReflection[]) {
+export function typeParameters(context: DefaultHtmlRenderContext, typeParameters: TypeParameterReflection[]) {
     return (
         <>
             <section class="tsd-panel">

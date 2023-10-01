@@ -5,7 +5,7 @@ import { Bound, Option, Plugin } from "../../utils";
 import { closeSync, existsSync, openSync, writeSync } from "fs";
 import { join } from "path";
 import type { Application } from "../../application";
-import { HtmlOutput } from "../html-output";
+import { DefaultHtmlOutput } from "../themes/default/DefaultHtmlOutput";
 
 /**
  * A plugin that copies the subdirectory ´assets´ from the current themes
@@ -28,7 +28,7 @@ export class AssetsPlugin {
      */
     @Bound
     private onRenderEnd(event: RendererEvent) {
-        if (this.application.renderer.output instanceof HtmlOutput) {
+        if (this.application.renderer.output instanceof DefaultHtmlOutput) {
             this.copyAssets(event.outputDirectory);
         }
     }

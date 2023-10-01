@@ -1,10 +1,10 @@
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 import { JSX } from "../../../../utils";
 import type { DeclarationReflection } from "../../../../models";
 import { anchorIcon } from "./anchor-icon";
 import { classNames } from "../../lib";
 
-export const memberSignatures = (context: DefaultThemeRenderContext, props: DeclarationReflection) => (
+export const memberSignatures = (context: DefaultHtmlRenderContext, props: DeclarationReflection) => (
     <>
         <ul class={classNames({ "tsd-signatures": true }, context.getReflectionClasses(props))}>
             {props.signatures?.map((item) => (

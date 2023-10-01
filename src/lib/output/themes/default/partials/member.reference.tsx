@@ -1,8 +1,8 @@
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 import { JSX } from "../../../../utils";
 import type { ReferenceReflection } from "../../../../models";
 
-export const memberReference = ({ urlTo }: DefaultThemeRenderContext, props: ReferenceReflection) => {
+export const memberReference = ({ urlTo }: DefaultHtmlRenderContext, props: ReferenceReflection) => {
     const referenced = props.tryGetTargetReflectionDeep();
 
     if (!referenced) {

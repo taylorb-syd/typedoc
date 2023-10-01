@@ -1,10 +1,10 @@
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 import { JSX, Raw } from "../../../../utils";
 import { ReflectionType, SignatureReflection } from "../../../../models";
 import { hasTypeParameters } from "../../lib";
 
 export function memberSignatureBody(
-    context: DefaultThemeRenderContext,
+    context: DefaultHtmlRenderContext,
     props: SignatureReflection,
     { hideSources = false }: { hideSources?: boolean } = {},
 ) {

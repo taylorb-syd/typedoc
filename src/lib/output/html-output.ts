@@ -7,12 +7,12 @@ import {
     ReflectionKind,
     SignatureReflection,
 } from "../models";
-import { EventHooks, Option } from "../utils";
+import { EventHooks, JSX, Option } from "../utils";
 import { setRenderSettings } from "../utils/jsx";
 import type { JsxElement } from "../utils/jsx.elements";
 import type { MarkdownEvent } from "./events";
 import { MinimalDocument, Output } from "./output";
-import type { DefaultThemeRenderContext } from "./themes/default/DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "./themes/default/DefaultHtmlRenderContext";
 
 export interface NavigationElement {
     text: string;
@@ -45,6 +45,18 @@ export class HtmlOutputDocument implements MinimalDocument {
 }
 
 /**
+ * The minimal interface that must be met for a render context to be used by {@link HtmlOutput}
+ */
+export interface HtmlRenderContext {
+    indexTemplate: (doc: HtmlOutputDocument) => JsxElement;
+    reflectionTemplate: (doc: HtmlOutputDocument) => JsxElement;
+    defaultLayout(
+        template: (doc: HtmlOutputDocument) => JsxElement,
+        document: HtmlOutputDocument,
+    ): JsxElement;
+}
+
+/**
  * Describes the hooks available to inject output in the default theme.
  * If the available hooks don't let you put something where you'd like, please open an issue!
  */
@@ -52,52 +64,52 @@ export interface HtmlRendererHooks {
     /**
      * Applied immediately after the opening `<head>` tag.
      */
-    "head.begin": [DefaultThemeRenderContext];
+    "head.begin": [DefaultHtmlRenderContext];
 
     /**
      * Applied immediately before the closing `</head>` tag.
      */
-    "head.end": [DefaultThemeRenderContext];
+    "head.end": [DefaultHtmlRenderContext];
 
     /**
      * Applied immediately after the opening `<body>` tag.
      */
-    "body.begin": [DefaultThemeRenderContext];
+    "body.begin": [DefaultHtmlRenderContext];
 
     /**
      * Applied immediately before the closing `</body>` tag.
      */
-    "body.end": [DefaultThemeRenderContext];
+    "body.end": [DefaultHtmlRenderContext];
 
     /**
      * Applied immediately before the main template.
      */
-    "content.begin": [DefaultThemeRenderContext];
+    "content.begin": [DefaultHtmlRenderContext];
 
     /**
      * Applied immediately after the main template.
      */
-    "content.end": [DefaultThemeRenderContext];
+    "content.end": [DefaultHtmlRenderContext];
 
     /**
      * Applied immediately before calling `context.sidebar`.
      */
-    "sidebar.begin": [DefaultThemeRenderContext];
+    "sidebar.begin": [DefaultHtmlRenderContext];
 
     /**
      * Applied immediately after calling `context.sidebar`.
      */
-    "sidebar.end": [DefaultThemeRenderContext];
+    "sidebar.end": [DefaultHtmlRenderContext];
 
     /**
      * Applied immediately before calling `context.pageSidebar`.
      */
-    "pageSidebar.begin": [DefaultThemeRenderContext];
+    "pageSidebar.begin": [DefaultHtmlRenderContext];
 
     /**
      * Applied immediately after calling `context.pageSidebar`.
      */
-    "pageSidebar.end": [DefaultThemeRenderContext];
+    "pageSidebar.end": [DefaultHtmlRenderContext];
 }
 
 const kindMappings = new Map([
@@ -117,7 +129,6 @@ export abstract class HtmlOutputRouter {
     private absoluteToRelativePathMap = new Map<string, string>();
     private renderStartTime = Date.now();
     private location = "";
-    currentDocument!: HtmlOutputDocument;
 
     @Option("cacheBust")
     accessor cacheBust!: boolean;
@@ -125,7 +136,6 @@ export abstract class HtmlOutputRouter {
     constructor(readonly application: Application) {}
 
     setCurrentDocument(doc: HtmlOutputDocument): void {
-        this.currentDocument = doc;
         this.location = posix.dirname(doc.filename);
     }
 
@@ -335,6 +345,19 @@ export abstract class HtmlOutput<
     override getDocuments(project: ProjectReflection): HtmlOutputDocument[] {
         this.router = this.buildRouter();
         return this.router.getDocuments(project);
+    }
+
+    abstract getRenderContext(document: HtmlOutputDocument): HtmlRenderContext;
+
+    override render(document: HtmlOutputDocument): string | Promise<string> {
+        this.router.setCurrentDocument(document);
+        const context = this.getRenderContext(document);
+        const template =
+            document.template === "index"
+                ? context.indexTemplate
+                : context.reflectionTemplate;
+        const templateOutput = context.defaultLayout(template, document);
+        return "<!DOCTYPE html>" + JSX.renderElement(templateOutput);
     }
 }
 

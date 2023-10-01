@@ -1,4 +1,4 @@
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 import {
     DeclarationReflection,
     LiteralType,
@@ -61,7 +61,7 @@ function getNamespacedPath(reflection: Reflection): Reflection[] {
     }
     return path;
 }
-function renderUniquePath(context: DefaultThemeRenderContext, reflection: Reflection): JSX.Element {
+function renderUniquePath(context: DefaultHtmlRenderContext, reflection: Reflection): JSX.Element {
     return join(<span class="tsd-signature-symbol">.</span>, getUniquePath(reflection), (item) => (
         <a href={context.urlTo(item)} class={"tsd-signature-type " + getKindClass(item)}>
             {item.name}
@@ -86,7 +86,7 @@ export function validateStateIsClean(page: string) {
 // 1 | 2[] !== (1 | 2)[]
 // () => 1 | 2 !== (() => 1) | 2
 const typeRenderers: {
-    [K in keyof TypeKindMap]: (context: DefaultThemeRenderContext, type: TypeKindMap[K]) => JSX.Element;
+    [K in keyof TypeKindMap]: (context: DefaultHtmlRenderContext, type: TypeKindMap[K]) => JSX.Element;
 } = {
     array(context, type) {
         return (
@@ -483,7 +483,7 @@ const typeRenderers: {
     },
 };
 
-function renderType(context: DefaultThemeRenderContext, type: Type | undefined, where: TypeContext) {
+function renderType(context: DefaultHtmlRenderContext, type: Type | undefined, where: TypeContext) {
     if (!type) {
         return <span class="tsd-signature-type">any</span>;
     }
@@ -504,6 +504,6 @@ function renderType(context: DefaultThemeRenderContext, type: Type | undefined, 
     return rendered;
 }
 
-export function type(context: DefaultThemeRenderContext, type: Type | undefined) {
+export function type(context: DefaultHtmlRenderContext, type: Type | undefined) {
     return renderType(context, type, TypeContext.none);
 }

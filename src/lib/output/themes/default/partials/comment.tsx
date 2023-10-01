@@ -1,11 +1,11 @@
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 import { JSX, Raw } from "../../../../utils";
 import { Reflection, ReflectionKind } from "../../../../models";
 import { camelToTitleCase } from "../../lib";
 
 // Note: Comment modifiers are handled in `renderFlags`
 
-export function commentSummary({ markdown }: DefaultThemeRenderContext, props: Reflection) {
+export function commentSummary({ markdown }: DefaultHtmlRenderContext, props: Reflection) {
     if (!props.comment?.summary.some((part) => part.text)) return;
 
     return (
@@ -15,7 +15,7 @@ export function commentSummary({ markdown }: DefaultThemeRenderContext, props: R
     );
 }
 
-export function commentTags({ markdown }: DefaultThemeRenderContext, props: Reflection) {
+export function commentTags({ markdown }: DefaultHtmlRenderContext, props: Reflection) {
     if (!props.comment) return;
 
     const tags = props.kindOf(ReflectionKind.SomeSignature)
@@ -36,7 +36,7 @@ export function commentTags({ markdown }: DefaultThemeRenderContext, props: Refl
 
 const flagsNotRendered: `@${string}`[] = ["@showCategories", "@showGroups", "@hideCategories", "@hideGroups"];
 
-export function reflectionFlags(_context: DefaultThemeRenderContext, props: Reflection) {
+export function reflectionFlags(_context: DefaultHtmlRenderContext, props: Reflection) {
     const allFlags = [...props.flags];
     if (props.comment) {
         for (const tag of props.comment.modifierTags) {

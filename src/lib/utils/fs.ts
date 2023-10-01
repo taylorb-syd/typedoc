@@ -110,7 +110,7 @@ export function readFile(file: string): string {
  * @param fileName  The name of the file that should be written.
  * @param data  The contents of the file.
  */
-export function writeFileSync(fileName: string, data: string) {
+export function writeFileSync(fileName: string, data: string | Buffer) {
     fs.mkdirSync(dirname(normalizePath(fileName)), { recursive: true });
     fs.writeFileSync(normalizePath(fileName), data);
 }

@@ -1,10 +1,10 @@
 import { classNames, getDisplayName, wbr } from "../../lib";
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 import { JSX } from "../../../../utils";
 import { DeclarationReflection, ReferenceReflection } from "../../../../models";
 import { anchorIcon } from "./anchor-icon";
 
-export function member(context: DefaultThemeRenderContext, props: DeclarationReflection) {
+export function member(context: DefaultHtmlRenderContext, props: DeclarationReflection) {
     context.page.pageHeadings.push({
         link: `#${props.anchor}`,
         text: getDisplayName(props),

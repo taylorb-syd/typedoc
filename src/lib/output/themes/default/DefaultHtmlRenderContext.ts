@@ -9,6 +9,7 @@ import type {
     HtmlOutput,
     HtmlOutputDocument,
     HtmlOutputRouter,
+    HtmlRenderContext,
     HtmlRendererHooks,
 } from "../../html-output";
 import { defaultLayout } from "./layouts/default";
@@ -54,18 +55,19 @@ function bind<F, L extends any[], R>(fn: (f: F, ...a: L) => R, first: F) {
     return (...r: L) => fn(first, ...r);
 }
 
-export class DefaultThemeRenderContext {
+export class DefaultHtmlRenderContext implements HtmlRenderContext {
     private _iconsCache: JSX.Element;
     private _refIcons: typeof icons;
     protected output: HtmlOutput<never>;
+    protected router: HtmlOutputRouter;
 
     constructor(
         output: HtmlOutput<any>,
         readonly page: HtmlOutputDocument,
-        protected router: HtmlOutputRouter,
         readonly options: Options,
     ) {
         this.output = output;
+        this.router = output.router;
 
         const { refs, cache } = buildRefIcons(icons);
         this._refIcons = refs;

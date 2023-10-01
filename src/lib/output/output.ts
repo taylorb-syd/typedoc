@@ -14,10 +14,9 @@ export interface MinimalDocument {
  * and instance of the requested class and use it to write a project to disc. The output class
  * will then be deleted; in watch mode, this means the class may be constructed many times.
  *
- * The renderer will first call {@link Output.getRouter} which will be used to list the files
- * to be written, and will be updated with each page being rendered. The router will also be
- * passed to the {@link Output.render} function so that it can be used to link to other pages
- * if desired.
+ * The renderer will first call {@link Output.getDocuments} which will be used to list the files
+ * to be written. Each document returned will be passed to the {@link Output.render} function
+ * to render to a string which will be written to disc.
  *
  * The {@link Output.render} function is responsible for turning a document into a string which
  * will be written to disc.
@@ -46,5 +45,5 @@ export abstract class Output<
      * Renders the provided page to a string, which will be written to disk by the {@link Renderer}
      * This will be called for each document returned by {@link getDocuments}.
      */
-    abstract render(document: TDocument): string | Promise<string>;
+    abstract render(document: TDocument): string | Promise<string> | Buffer;
 }

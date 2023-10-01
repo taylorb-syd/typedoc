@@ -1,10 +1,10 @@
 import { classNames, getDisplayName, hasTypeParameters, join } from "../../lib";
 import { JSX } from "../../../../utils";
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 import { ReflectionKind } from "../../../../models";
 import type { HtmlOutputDocument } from "../../../html-output";
 
-export const header = (context: DefaultThemeRenderContext, props: HtmlOutputDocument) => {
+export const header = (context: DefaultHtmlRenderContext, props: HtmlOutputDocument) => {
     const HeadingLevel = props.model.isProject() ? "h2" : "h1";
     return (
         <div class="tsd-page-title">

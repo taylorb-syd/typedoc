@@ -1,10 +1,10 @@
 import { JSX, Raw } from "../../../../utils";
 import type { HtmlOutputDocument } from "../../../html-output";
 import { getDisplayName } from "../../lib";
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 
 export const defaultLayout = (
-    context: DefaultThemeRenderContext,
+    context: DefaultHtmlRenderContext,
     template: (props: HtmlOutputDocument) => JSX.Element,
     props: HtmlOutputDocument,
 ) => (

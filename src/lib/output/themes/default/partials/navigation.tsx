@@ -2,11 +2,11 @@ import { ReflectionKind } from "../../../../models";
 import { JSX } from "../../../../utils";
 import type { HtmlOutputDocument, NavigationElement } from "../../../html-output";
 import { camelToTitleCase, classNames, getDisplayName, wbr } from "../../lib";
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 
 const MAX_EMBEDDED_NAV_SIZE = 20;
 
-export function sidebar(context: DefaultThemeRenderContext, props: HtmlOutputDocument) {
+export function sidebar(context: DefaultHtmlRenderContext, props: HtmlOutputDocument) {
     return (
         <>
             {context.sidebarLinks()}
@@ -15,7 +15,7 @@ export function sidebar(context: DefaultThemeRenderContext, props: HtmlOutputDoc
     );
 }
 
-function buildFilterItem(context: DefaultThemeRenderContext, name: string, displayName: string, defaultValue: boolean) {
+function buildFilterItem(context: DefaultHtmlRenderContext, name: string, displayName: string, defaultValue: boolean) {
     return (
         <li class="tsd-filter-item">
             <label class="tsd-filter-input">
@@ -27,7 +27,7 @@ function buildFilterItem(context: DefaultThemeRenderContext, name: string, displ
     );
 }
 
-export function sidebarLinks(context: DefaultThemeRenderContext) {
+export function sidebarLinks(context: DefaultHtmlRenderContext) {
     const links = Object.entries(context.options.getValue("sidebarLinks"));
     if (!links.length) return null;
     return (
@@ -39,7 +39,7 @@ export function sidebarLinks(context: DefaultThemeRenderContext) {
     );
 }
 
-export function settings(context: DefaultThemeRenderContext) {
+export function settings(context: DefaultHtmlRenderContext) {
     const defaultFilters = context.options.getValue("visibilityFilters") as Record<string, boolean>;
 
     const visibilityOptions: JSX.Element[] = [];
@@ -98,7 +98,7 @@ export function settings(context: DefaultThemeRenderContext) {
     );
 }
 
-export const navigation = function navigation(context: DefaultThemeRenderContext, props: HtmlOutputDocument) {
+export const navigation = function navigation(context: DefaultHtmlRenderContext, props: HtmlOutputDocument) {
     const nav = context.getNavigation();
 
     let elements = 0;
@@ -164,7 +164,7 @@ export const navigation = function navigation(context: DefaultThemeRenderContext
     );
 };
 
-export function pageSidebar(context: DefaultThemeRenderContext, props: HtmlOutputDocument) {
+export function pageSidebar(context: DefaultHtmlRenderContext, props: HtmlOutputDocument) {
     return (
         <>
             {context.settings()}
@@ -173,7 +173,7 @@ export function pageSidebar(context: DefaultThemeRenderContext, props: HtmlOutpu
     );
 }
 
-export function pageNavigation(context: DefaultThemeRenderContext, props: HtmlOutputDocument) {
+export function pageNavigation(context: DefaultHtmlRenderContext, props: HtmlOutputDocument) {
     const levels: JSX.Element[][] = [[]];
 
     function finalizeLevel() {

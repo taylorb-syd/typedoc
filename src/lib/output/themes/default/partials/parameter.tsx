@@ -1,9 +1,9 @@
 import { classNames, getKindClass, wbr } from "../../lib";
-import type { DefaultThemeRenderContext } from "../DefaultThemeRenderContext";
+import type { DefaultHtmlRenderContext } from "../DefaultHtmlRenderContext";
 import { JSX } from "../../../../utils";
 import { DeclarationReflection, ReflectionType } from "../../../../models";
 
-export const parameter = (context: DefaultThemeRenderContext, props: DeclarationReflection) => (
+export const parameter = (context: DefaultHtmlRenderContext, props: DeclarationReflection) => (
     <>
         <ul class="tsd-parameters">
             {!!props.signatures && (

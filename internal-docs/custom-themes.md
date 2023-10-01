@@ -1,25 +1,37 @@
 # Custom Themes
 
-TypeDoc 0.22 changed how themes are defined, necessarily breaking compatibility with all Handlebars based themes
-created for TypeDoc 0.21 and earlier. In 0.22+, themes are defined by plugins calling the `defineTheme` method on
-`Application.renderer` when plugins are loaded. The most trivial theme, which exactly duplicates the default theme
-can be created by doing the following:
+TypeDoc used to have the concept of a "theme" which was effectively a set of custom HTML templates used
+to render docs to HTML. With TypeDoc 0.26, this has changed so that TypeDoc operates on "outputs" instead.
+This rename allows more flexibility, so you could define an output to produce JSON, Markdown, or even
+a PDF! It also allows users to request more than one concurrent output type.
+
+Outputs are defined by plugins calling the `defineOutput` method on `Application.renderer` when plugins
+are loaded. The most trivial output, which exactly duplicates the default HTML output can be created by
+doing the following:
 
 ```ts
-import { Application, DefaultTheme } from "typedoc";
+import { Application, DefaultHtmlOutput } from "typedoc";
 
 export function load(app: Application) {
-    app.renderer.defineTheme("mydefault", DefaultTheme);
+    app.renderer.defineOutput("custom", DefaultHtmlOutput);
 }
 ```
 
-This isn't very interesting since it exactly duplicates the default theme. Most themes need to adjust the templates
-in some way. This can be done by providing them class which returns a different context class. Say we wanted to replace
-TypeDoc's default analytics helper with one that uses [Open Web Analytics](https://www.openwebanalytics.com/) instead of
-Google Analytics. This could be done with the following theme:
+This isn't very interesting since it exactly duplicates the default output. Most outputs are variations on
+the default HTML output and need to adjust the templates in some way. This can be done by providing a class
+which returns a different context class. Say we wanted to replace TypeDoc's default analytics helper with one
+that uses [Open Web Analytics](https://www.openwebanalytics.com/) instead of Google Analytics. This could be
+done with the following theme:
 
 ```tsx
-import { Application, DefaultTheme, PageEvent, JSX } from "typedoc";
+import {
+    Application,
+    DefaultHtmlOutput,
+    HtmlOutputDocument,
+    DefaultHtmlRenderContext,
+    PageEvent,
+    JSX,
+} from "typedoc";
 
 const script = `
 (function() {
@@ -30,7 +42,7 @@ const script = `
 }());
 `.trim();
 
-class MyThemeContext extends DefaultThemeRenderContext {
+class MyOutputContext extends DefaultHtmlRenderContext {
     // Important: If you use `this`, this function MUST be bound! Template functions are free
     // to destructure the context object to only grab what they care about.
     override analytics = () => {
@@ -47,41 +59,41 @@ class MyThemeContext extends DefaultThemeRenderContext {
     };
 }
 
-class MyTheme extends DefaultTheme {
-    private _contextCache?: MyThemeContext;
-    override getRenderContext() {
-        this._contextCache ||= new MyThemeContext(
-            this._markedPlugin,
-            this.application.options,
-        );
-        return this._contextCache;
+class MyOutput extends DefaultTheme {
+    override getRenderContext(doc: HtmlOutputDocument) {
+        return new MyOutputContext(this, doc, this.application.options);
     }
 }
 
 export function load(app: Application) {
-    app.renderer.defineTheme("open-web-analytics", MyTheme);
+    app.renderer.defineOutput("html:open-web-analytics", MyOutput);
 }
 ```
 
 ## Hooks (v0.22.8+)
 
-When rendering themes, TypeDoc's default theme will call several functions to allow plugins to inject HTML
-into a page without completely overwriting a theme. Hooks live on the parent `Renderer` and may be called
+When rendering HTML, TypeDoc's will call several functions to allow plugins to inject HTML
+into a page without completely overwriting a theme. Hooks live on output `HtmlOutput` and may be called
 by child themes which overwrite a helper with a custom implementation. As an example, the following plugin
 will cause a popup on every page when loaded.
 
 ```tsx
-import { Application, JSX } from "typedoc";
+import { Application, Renderer, JSX, HtmlOutput } from "typedoc";
 export function load(app: Application) {
-    app.renderer.hooks.on("head.end", () => (
-        <script>
-            <JSX.Raw html="alert('hi!');" />
-        </script>
-    ));
+    app.renderer.on(Renderer.EVENT_BEGIN, () => {
+        const output = app.renderer.output;
+        if (output instanceof HtmlOutput) {
+            output.hooks.on("head.end", () => (
+                <script>
+                    <JSX.Raw html="alert('hi!');" />
+                </script>
+            ));
+        }
+    });
 }
 ```
 
-For documentation on the available hooks, see the [RendererHooks](https://typedoc.org/api/interfaces/RendererHooks.html)
+For documentation on the available hooks, see the [HtmlRendererHooks](https://typedoc.org/api/interfaces/HtmlRendererHooks.html)
 documentation on the website.
 
 ## Async Jobs

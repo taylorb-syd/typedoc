@@ -46,14 +46,14 @@ export interface TypeDocPlugins {
          * User specified custom CSS and syntax highlighting styles may be appended to style.css
          * if specified/enabled respectively.
          *
-         * If your custom theme is derived from {@link DefaultTheme}, this will happen automatically.
+         * If your custom theme is derived from {@link DefaultHtmlOutput}, this will happen automatically.
          */
         copyAssets(outputDirectory: string): void;
     };
 
     "typedoc:searchIndex": {
         /**
-         * Writes search.js to the output directory. If your theme inherits from {@link DefaultTheme}
+         * Writes search.js to the output directory. If your theme inherits from {@link DefaultHtmlOutput}
          * then this will happen automatically.
          */
         buildSearchIndex(event: RendererEvent): Promise<void>;
@@ -61,7 +61,7 @@ export interface TypeDocPlugins {
 
     "typedoc:navigationTree": {
         /**
-         * Writes navigation.js to the output directory. If your theme inherits from {@link DefaultTheme}
+         * Writes navigation.js to the output directory. If your theme inherits from {@link DefaultHtmlOutput}
          * then this will happen automatically.
          */
         buildNavigationIndex(event: RendererEvent): Promise<void>;

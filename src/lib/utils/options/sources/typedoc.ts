@@ -483,7 +483,6 @@ export function addTypeDocOptions(
         defaults: {
             includeCategories: false,
             includeGroups: false,
-            fullTree: false,
         },
     });
 
