@@ -38,11 +38,12 @@ export class ReflectionGroup {
         this.title = title;
     }
 
-    /**
-     * Do all children of this group have a separate document?
-     */
-    allChildrenHaveOwnDocument(): boolean {
-        return this.children.every((child) => child.hasOwnDocument);
+    every(pred: (child: DeclarationReflection) => boolean): boolean {
+        return (
+            this.children.every(pred) &&
+            (!this.categories ||
+                this.categories?.every((cat) => cat.every(pred)))
+        );
     }
 
     toObject(serializer: Serializer): JSONOutput.ReflectionGroup {

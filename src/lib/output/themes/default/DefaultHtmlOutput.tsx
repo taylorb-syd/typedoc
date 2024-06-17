@@ -17,7 +17,7 @@ import {
 } from "../../html-output";
 import { DefaultHtmlRenderContext } from "./DefaultHtmlRenderContext";
 
-export class DefaultHtmlOutput<TEvents extends Record<keyof TEvents, unknown[]>> extends HtmlOutput<TEvents> {
+export class DefaultHtmlOutput<TEvents extends Record<keyof TEvents, unknown[]> = {}> extends HtmlOutput<TEvents> {
     @Option("visibilityFilters")
     accessor visibilityFilters!: Record<string, boolean>;
 
@@ -52,7 +52,7 @@ export class DefaultHtmlOutput<TEvents extends Record<keyof TEvents, unknown[]>>
 
             return {
                 text: getDisplayName(element),
-                path: element.url,
+                path: output.router.getFullUrl(element),
                 kind: element.kind,
                 class: classNames({ deprecated: element.isDeprecated() }, output.getReflectionClasses(element)),
                 children: getNavigationElements(element),

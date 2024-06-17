@@ -34,23 +34,22 @@ function renderCategory(
 
 export function index(context: DefaultHtmlRenderContext, props: ContainerReflection) {
     let content: JSX.Element | JSX.Element[] = [];
+    // Accordion is only needed if any children will be rendered on this page.
+    let needsAccordion = false;
 
     if (props.categories?.length) {
         content = props.categories.map((item) => renderCategory(context, item));
+        needsAccordion = !props.categories.every((cat) => cat.every(context.router.hasOwnDocument));
     } else if (props.groups?.length) {
         content = props.groups.flatMap((item) =>
             item.categories
                 ? item.categories.map((item2) => renderCategory(context, item2, item.title))
                 : renderCategory(context, item),
         );
+        needsAccordion = !props.groups.every((g) => g.every(context.router.hasOwnDocument));
     }
 
-    // Accordion is only needed if any children don't have their own document.
-    if (
-        [...(props.groups ?? []), ...(props.categories ?? [])].some(
-            (category) => !category.allChildrenHaveOwnDocument(),
-        )
-    ) {
+    if (needsAccordion) {
         content = (
             <details class="tsd-index-content tsd-index-accordion" open={true}>
                 <summary class="tsd-accordion-summary tsd-index-summary">

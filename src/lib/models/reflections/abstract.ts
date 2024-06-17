@@ -291,18 +291,6 @@ export abstract class Reflection {
     comment?: Comment;
 
     /**
-     * The url of this reflection in the generated documentation.
-     * TODO: Reflections shouldn't know urls exist. Move this to a serializer.
-     */
-    url?: string;
-
-    /**
-     * The name of the anchor of this child.
-     * TODO: Reflections shouldn't know anchors exist. Move this to a serializer.
-     */
-    anchor?: string;
-
-    /**
      * Is the url pointing to an individual document?
      *
      * When FALSE, the url points to an anchor tag on a page of a different reflection.

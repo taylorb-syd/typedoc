@@ -59,7 +59,7 @@ export class DefaultHtmlRenderContext implements HtmlRenderContext {
     private _iconsCache: JSX.Element;
     private _refIcons: typeof icons;
     protected output: HtmlOutput<never>;
-    protected router: HtmlOutputRouter;
+    readonly router: HtmlOutputRouter;
 
     constructor(
         output: HtmlOutput<any>,

@@ -28,11 +28,8 @@ export class ReflectionCategory {
         this.title = title;
     }
 
-    /**
-     * Do all children of this category have a separate document?
-     */
-    allChildrenHaveOwnDocument(): boolean {
-        return this.children.every((child) => child.hasOwnDocument);
+    every(pred: (x: DeclarationReflection) => boolean): boolean {
+        return this.children.every(pred);
     }
 
     toObject(_serializer: Serializer): JSONOutput.ReflectionCategory {

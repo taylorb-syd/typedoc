@@ -220,7 +220,7 @@ export class Options {
 
     addOutputShortcut<K extends keyof TypeDocOptions>(
         name: K,
-        builder: (value: K) => OutputOptions,
+        builder: (value: TypeDocOptionMap[K]) => OutputOptions,
     ) {
         this._outputShortcuts.push({ name, builder });
     }

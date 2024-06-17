@@ -11,7 +11,7 @@ export const parameter = (context: DefaultHtmlRenderContext, props: DeclarationR
                     <ul class={classNames({ "tsd-signatures": true }, context.getReflectionClasses(props))}>
                         {props.signatures.map((item) => (
                             <>
-                                <li class="tsd-signature" id={item.anchor}>
+                                <li class="tsd-signature" id={context.router.getAnchor(item)}>
                                     {context.memberSignatureTitle(item, {
                                         hideName: true,
                                     })}

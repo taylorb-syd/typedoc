@@ -45,5 +45,7 @@ export abstract class Output<
      * Renders the provided page to a string, which will be written to disk by the {@link Renderer}
      * This will be called for each document returned by {@link getDocuments}.
      */
-    abstract render(document: TDocument): string | Promise<string> | Buffer;
+    abstract render(
+        document: TDocument,
+    ): string | Buffer | Promise<string | Buffer>;
 }

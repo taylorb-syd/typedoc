@@ -15,7 +15,7 @@ export const memberGetterSetter = (context: DefaultHtmlRenderContext, props: Dec
         >
             {!!props.getSignature && (
                 <>
-                    <li class="tsd-signature" id={props.getSignature.anchor}>
+                    <li class="tsd-signature" id={context.router.getAnchor(props.getSignature)}>
                         <span class="tsd-signature-symbol">get</span> {props.name}
                         {context.memberSignatureTitle(props.getSignature, {
                             hideName: true,
@@ -26,7 +26,7 @@ export const memberGetterSetter = (context: DefaultHtmlRenderContext, props: Dec
             )}
             {!!props.setSignature && (
                 <>
-                    <li class="tsd-signature" id={props.setSignature.anchor}>
+                    <li class="tsd-signature" id={context.router.getAnchor(props.setSignature)}>
                         <span class="tsd-signature-symbol">set</span> {props.name}
                         {context.memberSignatureTitle(props.setSignature, {
                             hideName: true,

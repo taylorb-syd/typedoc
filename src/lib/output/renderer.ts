@@ -44,6 +44,11 @@ export interface RendererEvents {
     endRender: [RendererEvent];
 }
 
+export interface RendererType {
+    html: DefaultHtmlOutput;
+    json: JsonOutput;
+}
+
 /**
  * The renderer processes a {@link ProjectReflection} using a {@link Output} instance and writes
  * the emitted html documents to a output directory. You can specify which theme should be used

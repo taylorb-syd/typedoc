@@ -9,7 +9,7 @@ export function members(context: DefaultHtmlRenderContext, props: ContainerRefle
             <>
                 {props.categories.map(
                     (item) =>
-                        !item.allChildrenHaveOwnDocument() && (
+                        !item.every(context.router.hasOwnDocument) && (
                             <section
                                 class={classNames(
                                     { "tsd-panel-group": true, "tsd-member-group": true },
@@ -25,5 +25,5 @@ export function members(context: DefaultHtmlRenderContext, props: ContainerRefle
         );
     }
 
-    return <>{props.groups?.map((item) => !item.allChildrenHaveOwnDocument() && context.membersGroup(item))}</>;
+    return <>{props.groups?.map((item) => !item.every(context.router.hasOwnDocument) && context.membersGroup(item))}</>;
 }

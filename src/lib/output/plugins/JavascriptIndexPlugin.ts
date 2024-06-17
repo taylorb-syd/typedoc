@@ -71,7 +71,7 @@ export class JavascriptIndexPlugin {
         ).filter((refl) => {
             return (
                 refl instanceof DeclarationReflection &&
-                refl.url &&
+                output.router.getFullUrl(refl) &&
                 refl.name &&
                 !refl.flags.isExternal
             );
@@ -85,10 +85,6 @@ export class JavascriptIndexPlugin {
         builder.field("comment", { boost: 10 });
 
         for (const reflection of initialSearchResults) {
-            if (!reflection.url) {
-                continue;
-            }
-
             const boost = reflection.relevanceBoost ?? 1;
             if (boost <= 0) {
                 continue;
@@ -102,7 +98,7 @@ export class JavascriptIndexPlugin {
             const row: SearchDocument = {
                 kind: reflection.kind,
                 name: reflection.name,
-                url: reflection.url,
+                url: output.router.getFullUrl(reflection)!,
                 classes: output.getReflectionClasses?.(reflection),
             };
 

@@ -18,10 +18,13 @@ export const typeAndParent = (context: DefaultHtmlRenderContext, props: Type): J
         const refl = props.reflection instanceof SignatureReflection ? props.reflection.parent : props.reflection;
         const parent = refl?.parent;
 
+        const parentUrl = parent && context.urlTo(parent);
+        const reflUrl = context.urlTo(refl);
+
         return (
             <>
-                {parent?.url ? <a href={context.urlTo(parent)}>{parent.name}</a> : parent?.name}.
-                {refl?.url ? <a href={context.urlTo(refl)}>{refl.name}</a> : refl?.name}
+                {parentUrl ? <a href={parentUrl}>{parent.name}</a> : parent?.name}.
+                {reflUrl ? <a href={reflUrl}>{refl.name}</a> : refl?.name}
             </>
         );
     }

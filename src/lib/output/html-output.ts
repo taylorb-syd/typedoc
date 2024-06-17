@@ -126,9 +126,19 @@ const kindMappings = new Map([
 const URL_PREFIX = /^(http|ftp)s?:\/\//;
 
 export abstract class HtmlOutputRouter {
-    private absoluteToRelativePathMap = new Map<string, string>();
-    private renderStartTime = Date.now();
-    private location = "";
+    // Optimization to speed up relativeUrl for rendering strategies which place most
+    // links within a single directory.
+    private _absoluteToRelativePathMap = new Map<string, string>();
+    // dir => files
+    // We need this so that if we have two reflections which share a name in a directory
+    // we don't overwrite the first file with another one.
+    // private _aliases = new Map<string, Set<string>>(); GERRIT
+
+    private _renderStartTime = Date.now();
+    private _location = "";
+    private _hasOwnDocument = new Set<Reflection>();
+    protected urls = new Map<Reflection, string>();
+    protected anchors = new Map<Reflection, string>();
 
     @Option("cacheBust")
     accessor cacheBust!: boolean;
@@ -136,11 +146,24 @@ export abstract class HtmlOutputRouter {
     constructor(readonly application: Application) {}
 
     setCurrentDocument(doc: HtmlOutputDocument): void {
-        this.location = posix.dirname(doc.filename);
+        this._location = posix.dirname(doc.filename);
     }
 
+    getFullUrl(refl: Reflection) {
+        return this.urls.get(refl);
+    }
+
+    getAnchor(refl: Reflection) {
+        return this.anchors.get(refl);
+    }
+
+    hasOwnDocument = (refl: Reflection) => {
+        return this._hasOwnDocument.has(refl);
+    };
+
     urlTo(refl: Reflection) {
-        return refl.url ? this.relativeUrl(refl.url) : undefined;
+        const url = this.urls.get(refl);
+        return url ? this.relativeUrl(url) : undefined;
     }
 
     relativeUrl(absolute: string, cacheBust = false) {
@@ -148,34 +171,46 @@ export abstract class HtmlOutputRouter {
             return absolute;
         }
 
-        const key = `${this.location}:${absolute}`;
-        let path = this.absoluteToRelativePathMap.get(key);
+        const key = `${this._location}:${absolute}`;
+        let path = this._absoluteToRelativePathMap.get(key);
         if (path) return path;
-        path = posix.relative(this.location, absolute) || ".";
+
+        path = posix.relative(this._location, absolute) || ".";
         if (cacheBust && this.cacheBust) {
-            path += `?cache=${this.renderStartTime}`;
+            path += `?cache=${this._renderStartTime}`;
         }
-        this.absoluteToRelativePathMap.set(key, path);
+        this._absoluteToRelativePathMap.set(key, path);
         return path;
     }
 
-    abstract getDocuments(project: ProjectReflection): HtmlOutputDocument[];
+    getDocuments(project: ProjectReflection): HtmlOutputDocument[] {
+        const docs = this.buildDocuments(project);
+        this._hasOwnDocument = new Set(docs.map((d) => d.model));
+        return docs;
+    }
+
+    /**
+     * Responsible for iterating through the project's children and creating
+     * {@link HtmlOutputDocument}s for each page that should be created.
+     * Also responsible for building the {@link urls} and {@link anchors} maps for link resolution.
+     */
+    abstract buildDocuments(project: ProjectReflection): HtmlOutputDocument[];
 }
 
 export class KindFolderHtmlOutputRouter extends HtmlOutputRouter {
     @Option("readme")
     accessor readme!: string;
 
-    override getDocuments(project: ProjectReflection): HtmlOutputDocument[] {
+    override buildDocuments(project: ProjectReflection): HtmlOutputDocument[] {
         const outputs: HtmlOutputDocument[] = [];
 
         if (!hasReadme(this.readme)) {
-            project.url = "index.html";
+            this.urls.set(project, "index.html");
             outputs.push(
                 new HtmlOutputDocument(
                     project,
                     project,
-                    project.url,
+                    "index.html",
                     "reflection",
                 ),
             );
@@ -184,22 +219,22 @@ export class KindFolderHtmlOutputRouter extends HtmlOutputRouter {
         ) {
             // If there are no non-module children, then there's no point in having a modules page since there
             // will be nothing on it besides the navigation, so redirect the module page to the readme page
-            project.url = "index.html";
+            this.urls.set(project, "index.html");
             outputs.push(
-                new HtmlOutputDocument(project, project, project.url, "index"),
+                new HtmlOutputDocument(project, project, "index.html", "index"),
             );
         } else {
-            project.url = "modules.html";
+            this.urls.set(project, "modules.html");
+            outputs.push(
+                new HtmlOutputDocument(project, project, "index.html", "index"),
+            );
             outputs.push(
                 new HtmlOutputDocument(
                     project,
                     project,
-                    project.url,
+                    "modules.html",
                     "reflection",
                 ),
-            );
-            outputs.push(
-                new HtmlOutputDocument(project, project, "index.html", "index"),
             );
         }
 
@@ -223,7 +258,7 @@ export class KindFolderHtmlOutputRouter extends HtmlOutputRouter {
                 new HtmlOutputDocument(project, reflection, url, "reflection"),
             );
 
-            reflection.url = url;
+            this.urls.set(reflection, url);
             reflection.hasOwnDocument = true;
 
             reflection.traverse((child) => {
@@ -249,8 +284,8 @@ export class KindFolderHtmlOutputRouter extends HtmlOutputRouter {
 
         const anchor = this.getUrl(reflection, container);
 
-        reflection.url = container.url + "#" + anchor;
-        reflection.anchor = anchor;
+        this.urls.set(reflection, `${this.urls.get(container)}#${anchor}`);
+        this.anchors.set(reflection, anchor);
         reflection.hasOwnDocument = false;
 
         reflection.traverse((child) => {

@@ -113,7 +113,7 @@ export const navigation = function navigation(context: DefaultHtmlRenderContext,
                 <li>
                     <a
                         href={context.relativeURL(el.path)}
-                        class={classNames({ current: props.model.url === el.path }, el.class)}
+                        class={classNames({ current: context.router.getFullUrl(props.model) === el.path }, el.class)}
                     >
                         {el.kind && context.icons[el.kind]()}
                         {el.text}
